@@ -178,7 +178,6 @@ UserWarning: Conditional Formatting extension is not supported
 Are emitted by openpyxl and relate only to Excel formatting, not data integrity.
 They are safely suppressed by the unified runner.
 
-
 ## Development Notes
 
 - Engine logic lives under `src/v5_engine`
@@ -187,10 +186,13 @@ They are safely suppressed by the unified runner.
 
 ## Typical Workflow
 
+``text
+pip install -r requirements.txt
+python run_reconcile.py 2026.02
+``
 
-''text
-pip install -r requirements.txtpython run_reconcile.py 2026.02open outputs/2026.02/Traceability_Reconciliation_2026.02.xlsxShow more lines
-''
+open outputs/2026.02/Traceability_Reconciliation_2026.02.xlsx
+
 
 ## Maintainer Guidance
 
