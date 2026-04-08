@@ -157,7 +157,7 @@ One or more execution result files
 outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx
 ```
 
-Debug Outputs
+### Debug Outputs
 
 ```text
 
@@ -166,34 +166,23 @@ outputs/YYYY.MM/debug/
 
 Containing CSV files extracted during reconciliation for audit and diagnostics.
 
----
 
 ## Notes on Excel Warnings
 
 Warnings such as:
 
-
-
-## Notes on Excel Warnings
-
 ```text
-UserWarning: Conditional Formatting extension is not supported```
+UserWarning: Conditional Formatting extension is not supported
+```
 
-are emitted by openpyxl and relate only to Excel formatting, not data integrity.
+Are emitted by openpyxl and relate only to Excel formatting, not data integrity.
 They are safely suppressed by the unified runner.
 
----
 
 ## Development Notes
 
 - Engine logic lives under `src/v5_engine`
 - Runner scripts handle CLI arguments, environment setup, and filesystem layout
-- Month‑specific runner scripts have been superseded by 
-
-```
-
-run_reconcile.py
-```
 
 
 ## Typical Workflow
