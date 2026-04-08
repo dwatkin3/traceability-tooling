@@ -1,0 +1,6 @@
+{
+  "story_patterns": ["STRY\\d{3,}"],
+  "testid_patterns": [
+    "(?i)(?:KPSE\\d+|KP\\d+|KO\\d+|AL\\d+|IS\\d+|CEMO\\d+|CEMOVAR\\d+|CEMOAC\\d+|ME\\d+|AR\\d+|BA\\d+|BB\\d+|BC\\d+|DD\\d+|ET\\d+|TT\\d+)"
+  ]
+}

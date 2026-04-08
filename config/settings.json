@@ -1,0 +1,14 @@
+{
+  "red_on_extra": true,
+  "attach_orphans_via_plan": true,
+  "infer_plan_ranges": true,
+  "warn_on_unknown_family": true,
+  "families_allowlist": [
+    "AL", "AR", "BA", "BB", "BC",
+    "CEMO", "CEMOVAR", "CEMOAC",
+    "DD", "ET", "KO", "KP", "KPSE",
+    "IS", "ME", "TT"
+  ],
+  "min_story_markers_to_trust_exec": 1,
+  "enable_audit_sheets": true
+}

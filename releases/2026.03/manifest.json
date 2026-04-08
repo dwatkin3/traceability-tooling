@@ -1,0 +1,9 @@
+{
+  "release_id": "2026.03",
+  "plan_file": "plan/EM FMS Test Plan - March Release v0.5.docx",
+  "execution_files": [
+    "execution/KPI Team Verifications - Test Execution v0.1.xlsx",
+    "execution/CEMO PH6_7 Test Execution v0.2.xlsx",
+    "execution/24.03.2026 release Test Execution v0.2.xlsx"
+  ]
+}

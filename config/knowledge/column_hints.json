@@ -1,0 +1,17 @@
+{
+  "story_column_candidates": [
+    "Story",
+    "Story ID",
+    "StoryID",
+    "STRY",
+    "User Story",
+    "Story Id"
+  ],
+  "testid_column_candidates": [
+    "Test ID",
+    "Test",
+    "Scenario ID",
+    "TestId",
+    "ID"
+  ]
+}

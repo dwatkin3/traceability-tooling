@@ -1,0 +1,10 @@
+{
+  "plan_file": "plan/EM FMS Test Plan - February Release v1.0.docx",
+  "execution_files": [
+    "execution/BAT AL23_AL08_AL10 Automation Test Execution Progress v0.2 FINAL.xlsx",
+    "execution/BAT Bail ATV Test Execution Progress v0.2 FINAL.xlsx",
+    "execution/BAT CEMO Phase 5 Test Execution Progress v0.2 FINAL.xlsx",
+    "execution/BAT DDv6 Test Execution Progress v0.2 FINAL.xlsx",
+    "execution/BAT KPI6 Test Execution Progress v0.2 FINAL.xlsx"
+  ]
+}
