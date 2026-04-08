@@ -61,19 +61,40 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
-
-The tool uses openpyxl and pandas for Excel processing.
+---
 
 ## Running the Tool
 
-Unified runner (recommended)
-From the repository root:
-Shellpython run_reconcile.py YYYY.MM
+### Unified runner (recommended)
 
-``
-Example:
-Shellpython run_reconcile.py 2026.02S
-``
+From the repository root:
+
+```bash
+python run_reconcile.py YYYY.MM
+```
+
+The tool uses openpyxl and pandas for Excel processing.
+
+
+### Shell wrapper (optional)
+
+A convenience shell wrapper is provided:
+
+```bash
+./run_release.sh 2026.02
+```
+
+
+
+## Running the Tool
+
+### Unified runner (recommended)
+
+From the repository root:
+
+```bash
+python run_reconcile.py YYYY.MM
+```
 
 This command will:
 
@@ -86,20 +107,25 @@ Write outputs to outputs/YYYY.MM/
 
 
 Shell wrapper (optional)
+
 A convenience shell wrapper is provided:
 
 ``
-./run_release.sh 2026.02``
+./run_release.sh 2026.02
+``
 
 This activates the project virtual environment (if present) and invokes the Python runner.
+
+
+---
 
 ## Release Inputs
 
 Each release/month must have a directory under:
 
-``
-releases/YYYY.MM
-``
+```text
+releases/YYYY.MM/
+```
 
 At minimum, it must contain:
 
@@ -109,9 +135,9 @@ One or more execution result files
 ## manifest.json
 
 
-Example manifest.json
+### Example `manifest.json`
 
-``
+```json
 {
   "plan_file": "Test_Plan_2026.02.xlsx",
   "execution_files": [
@@ -119,36 +145,66 @@ Example manifest.json
     "Execution_Run_2.xlsx"
   ]
 }
-``
+```
+
+---
 
 ## Outputs
 
 ### Excel Report
 
-Plain Textoutputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsxShow more lines
+```text
+outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx
+```
 
 Debug Outputs
 
-Plain Textoutputs/YYYY.MM/debug/Show more lines
+```text
+
+outputs/YYYY.MM/debug/
+```
 
 Containing CSV files extracted during reconciliation for audit and diagnostics.
 
+---
+
 ## Notes on Excel Warnings
+
 Warnings such as:
-Plain TextUserWarning: Conditional Formatting extension is not supportedShow more lines
+
+
+
+## Notes on Excel Warnings
+
+```text
+UserWarning: Conditional Formatting extension is not supported```
+
 are emitted by openpyxl and relate only to Excel formatting, not data integrity.
 They are safely suppressed by the unified runner.
 
-Development Notes
+---
 
-Engine logic lives under src/v5_engine
-Runners handle CLI arguments, environment setup, and filesystem layout
-Month-specific runner scripts have been superseded by run_reconcile.py
+## Development Notes
+
+- Engine logic lives under `src/v5_engine`
+- Runner scripts handle CLI arguments, environment setup, and filesystem layout
+- Month‑specific runner scripts have been superseded by 
+
+```
+
+run_reconcile.py
+```
 
 
-Typical Workflow
-Plain Textpip install -r requirements.txtpython run_reconcile.py 2026.02open outputs/2026.02/Traceability_Reconciliation_2026.02.xlsxShow more lines
+## Typical Workflow
 
-Maintainer Guidance
+
+''text
+pip install -r requirements.txtpython run_reconcile.py 2026.02open outputs/2026.02/Traceability_Reconciliation_2026.02.xlsxShow more lines
+''
+
+## Maintainer Guidance
+
 The tool is intentionally data-driven.
+
 Most behaviour changes should be handled via manifests or configuration files, not engine code.
