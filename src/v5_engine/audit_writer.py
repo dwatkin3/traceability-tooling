@@ -20,7 +20,13 @@ def _build_summary(story_to_tests: Dict[str, Set[str]], df_exec: pd.DataFrame) -
         planned=set(planned_set)
         # only THIS story's execution rows
         exec_rows=set(df_exec.loc[df_exec['story']==story,'test'].dropna().astype(str))
-        executed=exec_rows | (planned & set(df_exec['test']))
+
+        executed = set(
+                        df_exec[
+                         (df_exec['story'] == story) &
+                          (df_exec['Status'].str.lower().isin(['passed', 'pass', 'complete']))
+                                ]['test'].dropna().astype(str)
+)
         covered=planned & executed
         missing=planned - executed
         extra_tests=executed - planned
@@ -54,26 +60,47 @@ def _build_summary(story_to_tests: Dict[str, Set[str]], df_exec: pd.DataFrame) -
         })
     return pd.DataFrame(rows)
 
-def write_output(output_path: Path, plan_raw_rows, exec_rows, story_to_tests, result, include_audit=True, debug_dir=None):
-    exec_rows_unique=list(dict.fromkeys(exec_rows))
-    df_exec=pd.DataFrame(exec_rows_unique, columns=['sheet','row','story','test','file'])
+def write_output(output_path: Path, plan_raw_rows, exec_rows, 
+                 story_to_tests, result, df_exec=None, 
+                 include_audit=True, debug_dir=None):
+    
+    if df_exec is None:
+        exec_rows_unique = list(dict.fromkeys(exec_rows))
+        df_exec = pd.DataFrame(exec_rows_unique, columns=[
+                               'Sheet', 'Row', 'Story', 'Test ID', 'Status', 'File'])
+    else:
+        # Ensure consistent column naming for downstream logic
+        df_exec = df_exec.copy()
+        df_exec.columns = [c.strip() for c in df_exec.columns]
+
+    # 🔧 NORMALISE COLUMN NAMES FOR SUMMARY LOGIC
+    df_exec.rename(columns={
+        'Story': 'story',
+        'Test ID': 'test'
+    }, inplace=True)
+
     df_summary=_build_summary(story_to_tests, df_exec)
     df_missing=_df_from_set('MissingTest', result.missing_tests)
     df_extra=_df_from_set('ExtraTest', result.extra_tests)
     st_rows=[(s,t) for s,tests in sorted(story_to_tests.items()) for t in sorted(tests)]
+    
     df_story_map=pd.DataFrame(st_rows, columns=['Story','Test'])
     df_plan_raw=pd.DataFrame(plan_raw_rows, columns=['StoryCell','RowText','TestCell'])
+    
     output_path=Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    
     with pd.ExcelWriter(output_path, engine='openpyxl') as xw:
         df_summary.to_excel(xw, sheet_name='Summary', index=False)
         df_missing.to_excel(xw, sheet_name='Missing', index=False)
         df_extra.to_excel(xw, sheet_name='Extra', index=False)
         df_story_map.to_excel(xw, sheet_name='Story_To_Test_Map', index=False)
         df_exec.to_excel(xw, sheet_name='Execution_Attachments', index=False)
+       
         if include_audit:
             df_plan_raw.to_excel(xw, sheet_name='Plan_Raw', index=False)
             df_exec.to_excel(xw, sheet_name='Exec_Raw', index=False)
+    
     if debug_dir:
         debug_dir=Path(debug_dir); debug_dir.mkdir(parents=True, exist_ok=True)
         df_summary.to_csv(debug_dir/'summary.csv', index=False)

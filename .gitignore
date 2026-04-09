@@ -1,0 +1,22 @@
+# Mac
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Outputs
+outputs/
+*/debug/
+
+# Excel temp
+~$*.xlsx
+~$*.docx
+
+# Optional: ignore releases execution files
+# Uncomment if you DON'T want these tracked
+# releases/**/execution/*.xlsx
+# releases/**/plan/*.docx
+
+releases/**/execution/
+releases/**/plan/

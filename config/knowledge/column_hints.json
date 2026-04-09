@@ -13,5 +13,26 @@
     "Scenario ID",
     "TestId",
     "ID"
-  ]
+  ],
+  "status_column_candidates": [
+    "status",
+    "result",
+    "outcome",
+    "execution status"
+  ],
+  "pass_values": [
+    "pass",
+    "Pass",
+    "PASS",
+    "PASSED",
+    "passed"
+  ],
+  "ignore_sheets": [
+  "version",
+  "summary",
+  "validation",
+  "cover",
+  "contents",
+  "readme"
+]
 }
