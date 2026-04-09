@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Outputs
+outputs/
+releases/outputs/
+
+# Office temp files
+~$*.xlsx
+
+# Release documents
+releases/**/execution/*.docx
+releases/**/execution/*.xlsx
+releases/**/plan/*.docx
