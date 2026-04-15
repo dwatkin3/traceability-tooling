@@ -19,4 +19,4 @@ outputs/
 # releases/**/plan/*.docx
 
 releases/**/execution/
-releases/**/plan/
+releases/**/plan/JobsToDo.txt
