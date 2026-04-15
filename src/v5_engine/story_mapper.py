@@ -1,11 +1,18 @@
 from __future__ import annotations
-from typing import Dict, Set
+from typing import Dict, Set, Tuple
 from collections import defaultdict
 
 class StoryMap:
-    def __init__(self, story_to_tests: Dict[str, Set[str]]):
-        self.story_to_tests = {s:set(v) for s,v in story_to_tests.items()}
-        self.test_to_stories: Dict[str, Set[str]] = defaultdict(set)
-        for s, tests in self.story_to_tests.items():
-            for t in tests:
-                self.test_to_stories[t].add(s)
+    def __init__(
+        self,
+        release_story_to_tests: Dict[Tuple[str, str], Set[str]]
+    ):
+        """
+        Key: (release, story)
+        Value: set of test IDs
+        """
+        self.release_story_to_tests = release_story_to_tests
+
+    def stories(self):
+        return {story for (_, story) in self.release_story_to_tests.keys()}
+

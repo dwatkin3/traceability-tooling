@@ -1,3 +1,14 @@
+# ==========================================================
+# TRACEABILITY RECONCILER - RUN PIPELINE
+#
+# Flow:
+# 1. Load plan → story_to_tests
+# 2. Parse execution files → exec_rows
+# 3. Reconcile plan vs execution
+# 4. Enrich execution (evidence + results)
+# 5. Write output workbook
+# ==========================================================
+
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -6,9 +17,11 @@ from .patterns_loader import load_patterns
 from .column_hints_loader import load_column_hints
 from .plan_parser import parse_plan_docx
 from .exec_parser import parse_execution_xlsx
-from .story_mapper import StoryMap
+from .status_utils import classify_status
 from .reconcile import reconcile
 from .audit_writer import write_output
+from .plan_parser import parse_plan_docx_with_release
+from collections import defaultdict
 
 def derive_test_result(status, has_evidence, pass_values):
     s = (status or "").lower().strip()
@@ -38,7 +51,32 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     manifest=json.loads(Path(manifest_path).read_text())
     plan_file=root_dir/manifest['plan_file']
     exec_files=[root_dir/p for p in manifest.get('execution_files', [])]
-    plan=parse_plan_docx(plan_file)
+
+    # -----------------------------
+    # LOAD TEST PLAN (source of truth)
+    # -----------------------------
+    # Returns:
+    # - release_story_to_tests: (release, story) → tests
+    # - story_to_release: story → release mapping (for reporting later)
+    release_story_to_tests, story_to_release = parse_plan_docx_with_release(plan_file)
+
+
+    # NOTE:
+    # release_story_to_tests is keyed as (release, story)
+    # We flatten to story-only because reconcile() works at story level
+    # and does not distinguish between releases
+    story_to_tests = defaultdict(set)
+    for (_, story), tests in release_story_to_tests.items():
+        story_to_tests[story].update(tests)
+    
+    # -----------------------------
+    # PARSE EXECUTION FILES
+    # -----------------------------
+    # Build:
+    # - exec_rows: full execution dataset (for reporting)
+    # - exec_test_ids: all test IDs found in execution sheets (regardless of status)
+    # - exec_story_refs: all stories referenced in execution
+
     exec_rows=[]
     exec_test_ids=set(); exec_story_refs=set()
 
@@ -77,25 +115,36 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     print(f"\nFINAL DEBUG: collected {len(exec_rows)} execution rows")
     print("Sample:", exec_rows[:5])
 
-
-    smap = StoryMap(plan.story_to_tests)
-
+    # -----------------------------
+    # RECONCILIATION (PLAN vs EXECUTION)
+    # -----------------------------
+    # Identifies:
+    # - missing tests
+    # - extra tests
+    # - stories with no execution coverage
+    # - unexpected stories in execution
     result = reconcile(
-        smap.story_to_tests,
+        story_to_tests,
         exec_test_ids,
         exec_story_refs,
         settings.red_on_extra
-)
+    )
     # -----------------------------
-    # Build enriched execution data
+    # BUILD EXECUTION DATAFRAME
     # -----------------------------
+    # Columns:
+    # - Story, Test ID, Status (raw from Excel)
+    # - Evidence (derived from evidence folder)
+    # - Test Result (derived: Passed / Evidenced / Fail / N/A)
+
     import pandas as pd
 
     df_exec = pd.DataFrame(exec_rows, columns=[
         "Sheet", "Row", "Story", "Test ID", "Status", "File"
     ])
 
-    # --- Simple evidence check (filename contains Test ID) ---
+    # Evidence is determined by filename match:
+    # if any file in /evidence contains the Test ID → Evidence = Yes
     evidence_files = []
     evidence_dir = root_dir / "evidence"
 
@@ -111,7 +160,6 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
         lambda t: "Yes" if has_evidence(t) else "No"
     )
 
-    # --- Apply your new function ---
     df_exec["Test Result"] = df_exec.apply(
         lambda r: derive_test_result(
             r["Status"],
@@ -128,14 +176,25 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     out_f=output_path or (out_folder/fname)
 
     print("DF_EXEC COLUMNS:", df_exec.columns.tolist())
+
+    # -----------------------------
+    # WRITE OUTPUT FILE
+    # -----------------------------
+    # Delegates to audit_writer:
+    # - Summary sheet (main reporting view)
+    # - Execution raw data
+    # - Missing / Extra tests
+    # - Debug outputs (optional)
     write_output(
-    out_f,
-    plan.raw_rows,
-    exec_rows,
-    smap.story_to_tests,
-    result,
-    df_exec=df_exec, 
-    include_audit=settings.enable_audit_sheets,
-    debug_dir=out_folder/'debug', pass_values=hints.pass_values
+        out_f,
+        [],  # 👈 replace plan.raw_rows with empty list (for now)
+        exec_rows,
+        story_to_tests,
+        result,
+        story_to_release,
+        df_exec=df_exec,
+        pass_values=hints.pass_values,
+        include_audit=settings.enable_audit_sheets,
+        debug_dir=out_folder/'debug'
 )
     return {"output": str(Path(out_f).resolve())}

@@ -7,6 +7,7 @@ from docx import Document
 from .range_expander import expand_ranges
 from .id_normaliser import normalise_id
 
+
 class PlanParseResult:
     def __init__(self, story_to_tests: Dict[str, Set[str]], raw_rows: List[Tuple[str,str,str]]):
         self.story_to_tests = story_to_tests
@@ -55,3 +56,63 @@ def parse_plan_docx(path: Path) -> PlanParseResult:
                     story_to_tests[s].update(tests)
                 raw_rows.append((','.join(stories), row_text, test_cell))
     return PlanParseResult(story_to_tests, raw_rows)
+
+# plan_parser.py
+
+RE_RELEASE = re.compile(r"(RLSE\d{7}\s+.+)", re.IGNORECASE)
+RE_STORY = re.compile(r"(STRY\d+)")
+RE_TEST_ID = re.compile(r"[A-Z]{2,}\d+[A-Z]?")
+
+
+def parse_plan_docx_with_release(path):
+    """
+    Returns:
+      release_story_to_tests: {(release, story): {test_ids}}
+      story_to_release: {story: release}
+    """
+
+    doc = Document(path)
+
+    release_story_to_tests: Dict[Tuple[str, str], Set[str]] = {}
+    story_to_release: Dict[str, str] = {}
+
+    current_release = None
+
+    # ---- Track the current release as we walk paragraphs ----
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            continue
+
+        m = RE_RELEASE.search(text)
+        if m:
+            current_release = m.group(1).strip()
+
+    # ---- Extract Story → Tests from tables under that release ----
+    for table in doc.tables:
+        if not current_release:
+            continue
+
+        for row in table.rows[1:]:  # skip header row
+            cells = [c.text.strip() for c in row.cells if c.text.strip()]
+            if len(cells) < 2:
+                continue
+
+            story_match = RE_STORY.search(" ".join(cells))
+            if not story_match:
+                continue
+
+            story = story_match.group(1)
+
+            test_ids = set()
+            for cell in cells:
+                test_ids.update(RE_TEST_ID.findall(cell))
+
+            if not test_ids:
+                continue
+
+            key = (current_release, story)
+            release_story_to_tests.setdefault(key, set()).update(test_ids)
+            story_to_release[story] = current_release
+
+    return release_story_to_tests, story_to_release
