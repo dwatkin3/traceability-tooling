@@ -136,6 +136,6 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     result,
     df_exec=df_exec, 
     include_audit=settings.enable_audit_sheets,
-    debug_dir=out_folder/'debug'
+    debug_dir=out_folder/'debug', pass_values=hints.pass_values
 )
     return {"output": str(Path(out_f).resolve())}

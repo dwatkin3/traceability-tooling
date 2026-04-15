@@ -14,55 +14,119 @@ def _family(t: str) -> str:
     m = re.match(r"^([A-Z]+)", t)
     return m.group(1) if m else ''
 
-def _build_summary(story_to_tests: Dict[str, Set[str]], df_exec: pd.DataFrame) -> pd.DataFrame:
-    rows=[]
-    for story, planned_set in sorted(story_to_tests.items()):
-        planned=set(planned_set)
-        # only THIS story's execution rows
-        exec_rows=set(df_exec.loc[df_exec['story']==story,'test'].dropna().astype(str))
+def _build_summary(story_to_tests, df_exec, pass_values):
 
-        executed = set(
-                        df_exec[
-                         (df_exec['story'] == story) &
-                          (df_exec['Status'].str.lower().isin(['passed', 'pass', 'complete']))
-                                ]['test'].dropna().astype(str)
-)
-        covered=planned & executed
-        missing=planned - executed
-        extra_tests=executed - planned
-        planned_fams={_family(t) for t in planned}
-        extra_same={t for t in extra_tests if _family(t) in planned_fams}
-        extra_diff={t for t in extra_tests if _family(t) not in planned_fams}
-        extra_fams={_family(t) for t in extra_tests}
-        if missing:
-            status='RED'; reason='MISSING_PLANNED'
-        elif extra_diff:
-            status='AMBER'; reason='CROSS_FAMILY_EXTRA_TESTS'
-        elif extra_same:
-            status='AMBER'; reason='SAME_FAMILY_EXTRA_TESTS'
-        else:
-            status='GREEN'; reason='ALL_PLANNED_EXECUTED'
-        rows.append({
-            'story':story,
-            'status':status,
-            'planned':len(planned),
-            'executed':len(executed),
-            'covered':len(covered),
-            'missing':len(missing),
-            'planned_list':_join(planned),
-            'executed_list':_join(executed),
-            'missing_list':_join(missing),
-            'extra_list':_join(extra_tests),
-            'extra_same_family_list':_join(extra_same),
-            'extra_diff_family_list':_join(extra_diff),
-            'extra_families':_join(extra_fams),
-            'status_reason':reason
+    def _classify_status(s, pass_values):
+        s_clean = str(s).strip().lower()
+
+        pass_values_clean = [p.lower() for p in pass_values]
+
+        if any(p in s_clean for p in pass_values_clean):
+            return "PASS"
+
+        if "fail" in s_clean:
+            return "FAIL"
+
+        if "progress" in s_clean:
+            return "IN_PROGRESS"
+
+        if "start" in s_clean:
+            return "NOT_STARTED"
+
+        return "OTHER"
+
+
+    def _derive_exec_status(group):
+        total = len(group)
+
+        status_counts = group["StatusClass"].value_counts()
+
+        passed = status_counts.get("PASS", 0)
+        failed = status_counts.get("FAIL", 0)
+        in_progress = status_counts.get("IN_PROGRESS", 0)
+        not_started = status_counts.get("NOT_STARTED", 0)
+
+        passed_with_evidence = len(group[
+            (group["StatusClass"] == "PASS") &
+            (group["Evidence"] == "Yes")
+        ])
+
+        # ---- LOGIC ----
+        if total == 0:
+            return "🔴 No Tests"
+
+        if failed > 0:
+            return "🔴 Failed"
+
+        if passed > 0 and passed_with_evidence < passed:
+            return "🔴 Passed but NO evidence"
+
+        if passed == 0 and in_progress == 0:
+            return "🔴 Not Started"
+
+        if in_progress > 0:
+            return "🟠 In Progress"
+
+        if passed == total and passed_with_evidence == passed:
+            return "🟢 Passed with Evidence"
+
+        return "🟠 Mixed"
+
+    df_exec = df_exec.copy()
+
+    # Ensure expected column names
+    df_exec.rename(columns={
+        'story': 'Story',
+        'test': 'Test ID'
+    }, inplace=True)
+
+    df_exec["StatusClass"] = df_exec["Status"].apply(
+        lambda s: _classify_status(s, pass_values)
+    )
+
+    summary_rows = []
+
+    # 🔑 iterate ALL stories from PLAN (important for missing case)
+    for story, group in df_exec.groupby("Story"):
+
+        total = len(group)
+
+        status_counts = group["StatusClass"].value_counts()
+
+        passed = status_counts.get("PASS", 0)
+        failed = status_counts.get("FAIL", 0)
+        in_progress = status_counts.get("IN_PROGRESS", 0)
+        not_started = status_counts.get("NOT_STARTED", 0)
+
+        passed_with_evidence = len(group[
+            (group["StatusClass"] == "PASS") &
+            (group["Evidence"] == "Yes")
+        ])
+
+        # ✅ TRACEABILITY
+        traceability = "🟢 Covered" if total > 0 else "🔴 No Tests"
+
+        # ✅ EXEC STATUS
+        exec_status = _derive_exec_status(group)
+
+        summary_rows.append({
+            "Story": story,
+            "Traceability": traceability,
+            "Exec Status": exec_status,
+            "Total Tests": total,
+            "Passed": passed,
+            "Failed": failed,
+            "In Progress": in_progress,
+            "Not Started": not_started,
+            "Passed w/ Evidence": passed_with_evidence
         })
-    return pd.DataFrame(rows)
+
+    return pd.DataFrame(summary_rows)
 
 def write_output(output_path: Path, plan_raw_rows, exec_rows, 
-                 story_to_tests, result, df_exec=None, 
-                 include_audit=True, debug_dir=None):
+                 story_to_tests, result, df_exec=None, df_summary=None,
+                 include_audit=True, debug_dir=None, 
+                 pass_values=None):
     
     if df_exec is None:
         exec_rows_unique = list(dict.fromkeys(exec_rows))
@@ -79,7 +143,7 @@ def write_output(output_path: Path, plan_raw_rows, exec_rows,
         'Test ID': 'test'
     }, inplace=True)
 
-    df_summary=_build_summary(story_to_tests, df_exec)
+    df_summary = _build_summary(story_to_tests, df_exec, pass_values)
     df_missing=_df_from_set('MissingTest', result.missing_tests)
     df_extra=_df_from_set('ExtraTest', result.extra_tests)
     st_rows=[(s,t) for s,tests in sorted(story_to_tests.items()) for t in sorted(tests)]
