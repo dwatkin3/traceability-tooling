@@ -22,6 +22,7 @@ from .reconcile import reconcile
 from .audit_writer import write_output
 from .plan_parser import parse_plan_docx_with_release
 from collections import defaultdict
+import re
 
 def derive_test_result(status, has_evidence, pass_values):
     s = (status or "").lower().strip()
@@ -31,7 +32,7 @@ def derive_test_result(status, has_evidence, pass_values):
     is_pass = any(p == s for p in pass_values)
 
     # FAIL logic (anything meaningful but not pass)
-    is_fail = s and not is_pass
+    is_fail = "fail" in s
 
     if is_fail:
         return "Fail"
@@ -151,11 +152,15 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     if evidence_dir.exists():
         for p in evidence_dir.rglob("*"):
             evidence_files.append(p.name.lower())
+ 
+    def normalise(s):
+        return re.sub(r'[^a-z0-9]', '', s.lower())
 
     def has_evidence(test_id):
-        t = str(test_id).lower()
-        return any(t in f for f in evidence_files)
+        t = normalise(test_id)
+        return any(t in normalise(f) for f in evidence_files)
 
+    # ✅ THIS MUST BE OUTSIDE THE FUNCTION
     df_exec["Evidence"] = df_exec["Test ID"].apply(
         lambda t: "Yes" if has_evidence(t) else "No"
     )

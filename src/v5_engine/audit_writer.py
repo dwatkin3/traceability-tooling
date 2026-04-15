@@ -53,57 +53,73 @@ def _derive_exec_status(
     return "🟠 Mixed / Unknown"
 
 def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
-    """
-    Build one row per STORY with:
-    - Traceability (Plan vs Execution presence)
-    - Exec Status (RED / AMBER / GREEN based on rules)
-    """
 
-    print("DEBUG: story_to_release keys:", list(story_to_release.keys())[:5])
-    print("PASS VALUES:", pass_values)
-
-    import pandas as pd
-
-    # 🔧 Ensure consistent column names
     df_exec = df_exec.copy()
     df_exec.columns = [c.strip() for c in df_exec.columns]
+    df_exec["Evidence"] = df_exec["Evidence"].astype(str).str.strip().str.lower()
 
-    summary_rows = []
-    # -----------------------------
-    # PRE-COMPUTE STATUS CLASS ONCE
-    # -----------------------------
+    # ✅ PRE-COMPUTE STATUS CLASS ONCE (fixes warnings + consistency)
     df_exec["StatusClass"] = df_exec["Status"].apply(
         lambda s: classify_status(s, pass_values)
-)
+    )
+
+
+    summary_rows = []
 
     for story, planned_tests in sorted(story_to_tests.items()):
 
-        release = story_to_release.get(story, "UNKNOWN")
-        print("DEBUG STORY:", story, "→ RELEASE:", release)
+        group = df_exec[df_exec["Story"] == story]
 
-        # -----------------------------
-        # EXECUTION DATA FOR THIS STORY
-        # -----------------------------
-        group = df_exec[df_exec[COL_STORY] == story]
+        # Optional: quick glance debug
+        print(group[["Test ID", "Status", "StatusClass", "Evidence"]].head(3))
+
+        # 🎯 Targeted debug for your test
+        if story == "STRY0085912":
+            print("\nDEBUG IS01A ROWS:")
+            print(group[group["Test ID"] == "IS01A"][
+                ["Test ID", "Status", "StatusClass", "Evidence"]
+            ])
 
         total_exec = len(group)
-
         # -----------------------------
         # TRACEABILITY
         # -----------------------------
-        has_execution_tests = total_exec > 0
+        traceability = "🟢 Tests present" if total_exec > 0 else "🔴 No tests in execution"
 
-        if not has_execution_tests:
-            traceability = "🔴 No tests in execution"
-        else:
-            traceability = "🟢 Tests present"
-
+        # -----------------------------
+        # COUNTS
+        # -----------------------------
         status_counts = group["StatusClass"].value_counts()
 
         passed = status_counts.get("PASS", 0)
         failed = status_counts.get("FAIL", 0)
         in_progress = status_counts.get("IN_PROGRESS", 0)
         not_started = status_counts.get("NOT_STARTED", 0)
+
+        # -----------------------------
+        # EVIDENCE
+        # -----------------------------
+        passed_with_evidence = len(group[
+            (group["StatusClass"] == "PASS") &
+            (group["Evidence"] == "yes")
+        ])
+
+        # -----------------------------
+        # EXEC STATUS
+        # -----------------------------
+        exec_status = _derive_exec_status(
+            total_exec,
+            passed,
+            failed,
+            in_progress,
+            not_started,
+            passed_with_evidence
+        )
+
+        # -----------------------------
+        # RELEASE
+        # -----------------------------
+        release = story_to_release.get(story, "UNKNOWN")
 
         # -----------------------------
         # ISSUE BUILDING
@@ -125,35 +141,21 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
         issue_text = " | ".join(issues) if issues else ""
 
-        # -----------------------------
-        # EVIDENCE CHECK
-        # -----------------------------
-        passed_with_evidence = len(group[
-            (group["StatusClass"] == "PASS") &
-            (group["Evidence"] == "Yes")
-        ])
 
+        if story == "STRY0085912":
+            print("\nDEBUG IS01A ROWS:")
+            print(group[group["Test ID"] == "IS01A"][[
+                "Test ID", "Status", "StatusClass", "Evidence"
+            ]])
         # -----------------------------
-        # EXEC STATUS (YOUR RULES)
-        # -----------------------------
-        exec_status = _derive_exec_status(
-            total_exec,
-            passed,
-            failed,
-            in_progress,
-            not_started,
-            passed_with_evidence
-)
-
-        # -----------------------------
-        # BUILD ROW
+        # APPEND ROW TO SUMMARY SHEET
         # -----------------------------
         summary_rows.append({
-            "Release": release,   # 
+            "Release": release,
             "Story": story,
             "Traceability": traceability,
             "Exec Status": exec_status,
-            "Issue": issue_text,  # 
+            "Issue": issue_text,
             "Planned Tests": len(planned_tests),
             "Execution Tests": total_exec,
             "Passed": int(passed),
@@ -163,8 +165,8 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             "Passed w/ Evidence": int(passed_with_evidence)
         })
 
-    df = pd.DataFrame(summary_rows)
-    return df.sort_values(["Release", "Story"])
+    return pd.DataFrame(summary_rows).sort_values(["Release", "Story"])
+
 
 
 def write_output(
