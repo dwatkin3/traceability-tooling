@@ -221,8 +221,6 @@ def write_output(
     for (release, story), tests in story_to_tests.items():
         story_to_tests_flat.setdefault(story, set()).update(tests)
 
-    print("STORY_TO_TESTS KEYS SAMPLE:", list(story_to_tests.keys())[:5])
-    
     df_summary = _build_summary(
         story_to_tests_flat,
         df_exec,

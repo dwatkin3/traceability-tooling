@@ -15,8 +15,16 @@ outputs/
 
 # Optional: ignore releases execution files
 # Uncomment if you DON'T want these tracked
-# releases/**/execution/*.xlsx
-# releases/**/plan/*.docx
+releases/**/execution/*.xlsx
+releases/**/plan/*.docx
 
 releases/**/execution/
 releases/**/plan/JobsToDo.txt
+
+# Local notes / debug
+JobsToDo.txt
+debug*.txt
+
+# Generated outputs / evidence
+releases/**/evidence/
+

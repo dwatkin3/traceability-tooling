@@ -84,8 +84,7 @@ def parse_plan_docx_with_release(path: Path):
 
             m = RE_RELEASE.search(text)
 
-            if m:
-                print("RAW PARAGRAPH TEXT:", repr(text))    
+            if m:  
                 release_text = m.group(0).strip()
                 if release_text != current_release:
                     current_release = release_text
