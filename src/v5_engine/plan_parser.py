@@ -61,58 +61,68 @@ def parse_plan_docx(path: Path) -> PlanParseResult:
 
 RE_RELEASE = re.compile(r"(RLSE\d{7}\s+.+)", re.IGNORECASE)
 RE_STORY = re.compile(r"(STRY\d+)")
-RE_TEST_ID = re.compile(r"[A-Z]{2,}\d+[A-Z]?")
+RE_TEST_ID = re.compile(r"\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b")
 
+def parse_plan_docx_with_release(path: Path):
 
-def parse_plan_docx_with_release(path):
-    """
-    Returns:
-      release_story_to_tests: {(release, story): {test_ids}}
-      story_to_release: {story: release}
-    """
+    doc = Document(str(path))
 
-    doc = Document(path)
-
-    release_story_to_tests: Dict[Tuple[str, str], Set[str]] = {}
-    story_to_release: Dict[str, str] = {}
+    release_story_to_tests = defaultdict(set)
+    story_to_release = {}
+    raw_rows = []
 
     current_release = None
+    
+    tables = iter(doc.tables)
 
-    # ---- Track the current release as we walk paragraphs ----
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if not text:
-            continue
+    # Walk document body in order (paragraphs + tables)
+    for block in doc.element.body:
 
-        m = RE_RELEASE.search(text)
-        if m:
-            current_release = m.group(1).strip()
+        # ---------- PARAGRAPH ----------
+        if block.tag.endswith('}p'):
+            text = block.text.strip()
 
-    # ---- Extract Story → Tests from tables under that release ----
-    for table in doc.tables:
-        if not current_release:
-            continue
+            m = RE_RELEASE.search(text)
 
-        for row in table.rows[1:]:  # skip header row
-            cells = [c.text.strip() for c in row.cells if c.text.strip()]
-            if len(cells) < 2:
+            if m:
+                print("RAW PARAGRAPH TEXT:", repr(text))    
+                release_text = m.group(0).strip()
+                if release_text != current_release:
+                    current_release = release_text
                 continue
 
-            story_match = RE_STORY.search(" ".join(cells))
-            if not story_match:
-                continue
+        # ---------- TABLE ----------
+        if block.tag.endswith('}tbl'):
+            table = next(tables)
 
-            story = story_match.group(1)
+            if not current_release:
+                continue  # tables before first RLSE header are ignored
 
-            test_ids = set()
-            for cell in cells:
-                test_ids.update(RE_TEST_ID.findall(cell))
+            for row in table.rows:
+                cells = [c.text.strip() for c in row.cells]
+                row_text = " ".join(cells)
 
-            if not test_ids:
-                continue
+                stories = _extract_story_ids(row_text)
+                if not stories:
+                    continue
 
-            key = (current_release, story)
-            release_story_to_tests.setdefault(key, set()).update(test_ids)
-            story_to_release[story] = current_release
+                tests = _extract_tests_from_cell(cells[-1] if cells else "")
+                if not tests:
+                    continue
 
-    return release_story_to_tests, story_to_release
+                for story in stories:
+                    release_story_to_tests[(current_release, story)].update(tests)
+                    story_to_release[story] = current_release
+                    raw_rows.append((
+                        ",".join(stories),
+                        row_text,
+                        cells[-1] if cells else ""
+                    ))
+
+    if not release_story_to_tests:
+        raise ValueError(
+            f"Plan parsing produced zero (release, story) mappings for {path}"
+        )
+
+    return release_story_to_tests, story_to_release, raw_rows
+

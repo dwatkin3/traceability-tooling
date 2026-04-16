@@ -70,16 +70,6 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
         group = df_exec[df_exec["Story"] == story]
 
-        # Optional: quick glance debug
-        print(group[["Test ID", "Status", "StatusClass", "Evidence"]].head(3))
-
-        # 🎯 Targeted debug for your test
-        if story == "STRY0085912":
-            print("\nDEBUG IS01A ROWS:")
-            print(group[group["Test ID"] == "IS01A"][
-                ["Test ID", "Status", "StatusClass", "Evidence"]
-            ])
-
         total_exec = len(group)
         # -----------------------------
         # TRACEABILITY
@@ -142,11 +132,6 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         issue_text = " | ".join(issues) if issues else ""
 
 
-        if story == "STRY0085912":
-            print("\nDEBUG IS01A ROWS:")
-            print(group[group["Test ID"] == "IS01A"][[
-                "Test ID", "Status", "StatusClass", "Evidence"
-            ]])
         # -----------------------------
         # APPEND ROW TO SUMMARY SHEET
         # -----------------------------
@@ -165,9 +150,47 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             "Passed w/ Evidence": int(passed_with_evidence)
         })
 
+
     return pd.DataFrame(summary_rows).sort_values(["Release", "Story"])
 
+def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
+    rows = []
 
+    for story, planned_tests in sorted(story_to_tests.items()):
+
+        group = df_exec[df_exec["Story"] == story]
+
+        exec_tests = set(group["Test ID"].dropna().astype(str))
+        planned_tests = set(planned_tests)
+
+        missing = planned_tests - exec_tests
+        extra = exec_tests - planned_tests
+
+        # Try to get source info (first occurrence)
+        if not group.empty:
+            source_file = group["File"].iloc[0]
+            source_sheet = group["Sheet"].iloc[0]
+        else:
+            source_file = ""
+            source_sheet = ""
+
+        rows.append({
+            "Release": story_to_release.get(story, ""),
+            "Story": story,
+            "Source File": source_file,
+            "Sheet": source_sheet,
+            "Planned Tests": ", ".join(sorted(planned_tests)),
+            "Execution Tests": ", ".join(sorted(exec_tests)),
+            "Missing Tests": ", ".join(sorted(missing)),
+            "Extra Tests": ", ".join(sorted(extra)),
+            "Planned Count": len(planned_tests),
+            "Execution Count": len(exec_tests),
+            "Missing Count": len(missing),
+            "Extra Count": len(extra),
+            "Has Gap": len(missing) > 0 or len(extra) > 0,
+        })
+
+    return pd.DataFrame(rows)
 
 def write_output(
     output_path,
@@ -191,16 +214,36 @@ def write_output(
         df_exec = df_exec.copy()
         df_exec.columns = [c.strip() for c in df_exec.columns]
 
+        
+    # Convert (release, story) → story_to_tests
+    story_to_tests_flat = {}
+
+    for (release, story), tests in story_to_tests.items():
+        story_to_tests_flat.setdefault(story, set()).update(tests)
+
+    print("STORY_TO_TESTS KEYS SAMPLE:", list(story_to_tests.keys())[:5])
+    
     df_summary = _build_summary(
-        story_to_tests,
+        story_to_tests_flat,
         df_exec,
         pass_values,
-        story_to_release
+        story_to_release   
+    )
+
+    df_gaps = _build_traceability_gaps(
+        df_exec,
+        story_to_tests_flat,
+        story_to_release   #
     )
 
     df_missing=_df_from_set('MissingTest', result.missing_tests)
     df_extra=_df_from_set('ExtraTest', result.extra_tests)
-    st_rows=[(s,t) for s,tests in sorted(story_to_tests.items()) for t in sorted(tests)]
+
+    st_rows = [
+    (s, t)
+    for s, tests in sorted(story_to_tests_flat.items())
+    for t in sorted(tests)
+    ]
     
     df_story_map=pd.DataFrame(st_rows, columns=['Story','Test'])
     df_plan_raw=pd.DataFrame(plan_raw_rows, columns=['StoryCell','RowText','TestCell'])
@@ -210,6 +253,7 @@ def write_output(
     
     with pd.ExcelWriter(output_path, engine='openpyxl') as xw:
         df_summary.to_excel(xw, sheet_name='Summary', index=False)
+        df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
         df_missing.to_excel(xw, sheet_name='Missing', index=False)
         df_extra.to_excel(xw, sheet_name='Extra', index=False)
         df_story_map.to_excel(xw, sheet_name='Story_To_Test_Map', index=False)

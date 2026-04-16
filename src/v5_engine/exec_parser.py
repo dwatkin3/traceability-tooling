@@ -11,7 +11,7 @@ class ExecRow:
     row: int
     story: Optional[str]
     test: str
-    status: str   # NEW
+    status: str
     file: str
 
 
@@ -23,12 +23,14 @@ class ExecParseResult:
 def _find_candidate_column(columns: List[str], candidates: List[str]) -> Optional[int]:
     cols_lower = [str(c).strip().lower() for c in columns]
 
+    # Exact match first
     for cand in candidates:
         cand = cand.lower()
         for i, col in enumerate(cols_lower):
             if cand == col:
                 return i
 
+    # Fallback: partial match
     for cand in candidates:
         cand = cand.lower()
         for i, col in enumerate(cols_lower):
@@ -56,6 +58,8 @@ def parse_execution_xlsx(
     ignore_sheets: List[str],
 ) -> ExecParseResult:
 
+    print("\nFILE BEING READ:", path.resolve())
+
     all_rows: List[ExecRow] = []
 
     xls = pd.ExcelFile(path)
@@ -68,12 +72,24 @@ def parse_execution_xlsx(
             continue
 
         try:
-            df = xls.parse(sheet, dtype=str)
-        except Exception:
+            df = pd.read_excel(
+                path,
+                sheet_name=sheet,
+                engine="openpyxl",
+                dtype=str,
+                keep_default_na=False
+            )
+
+            # Clean all values
+            df = df.apply(lambda col: col.astype(str).str.strip())
+
+        except Exception as e:
+            print(f"Failed reading sheet {sheet}: {e}")
             continue
 
         if df.empty:
             continue
+
 
         df_cols = list(df.columns)
 
@@ -82,20 +98,23 @@ def parse_execution_xlsx(
         idx_status = _find_candidate_column(df_cols, status_col_candidates)
 
         for ridx, row in df.iterrows():
+
             if row.isna().all():
                 continue
 
-            # -------- STATUS (no filtering anymore) --------
+            # ---------------- STATUS ----------------
             status_val = ""
             if idx_status is not None and idx_status < len(row):
                 status_val = str(row.iloc[idx_status] or "").strip()
 
-            # -------- TEST ID --------
+            # ---------------- TEST ID ----------------
             test_val = None
 
             if idx_test is not None and idx_test < len(row):
+
                 test_val = str(row.iloc[idx_test] or "").strip()
 
+            # Fallback extraction
             if not test_val:
                 combined = " ".join([str(v) for v in row.values if pd.notna(v)])
                 test_val = _extract_with_patterns(combined, testid_patterns)
@@ -103,38 +122,30 @@ def parse_execution_xlsx(
             if not test_val:
                 continue
 
-            # -------- STORY ID --------
+            # ---------------- STORY ----------------
             story_val = None
 
             if idx_story is not None and idx_story < len(row):
                 story_val = str(row.iloc[idx_story] or "").strip()
 
-                print(f"RAW STORY FIELD → {story_val}")
-
             if not story_val:
                 combined = " ".join([str(v) for v in row.values if pd.notna(v)])
                 story_val = _extract_with_patterns(combined, story_patterns)
 
-            # --- CLEAN + NORMALISE ---
-
             story = (story_val or "").strip()
             test_id = (test_val or "").strip()
 
-            # ❌ Skip junk rows
             if not story or not test_id:
                 continue
 
             if story.lower() == "nan" or test_id.lower() == "nan":
                 continue
 
-            # ✅ Extract ALL STRY IDs (robust handling)
             stories = re.findall(r"STRY\d+", story)
 
-            # ❌ If no valid story IDs found → skip row
             if not stories:
                 continue
 
-            # ✅ Create one row per story
             for s in stories:
                 all_rows.append(
                     ExecRow(
@@ -145,7 +156,6 @@ def parse_execution_xlsx(
                         status=status_val,
                         file=path.name,
                     )
-           
-    )
+                )
 
     return ExecParseResult(rows=all_rows)

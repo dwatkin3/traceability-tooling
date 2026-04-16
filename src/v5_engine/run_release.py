@@ -15,9 +15,7 @@ from pathlib import Path
 from .settings_loader import load_settings
 from .patterns_loader import load_patterns
 from .column_hints_loader import load_column_hints
-from .plan_parser import parse_plan_docx
 from .exec_parser import parse_execution_xlsx
-from .status_utils import classify_status
 from .reconcile import reconcile
 from .audit_writer import write_output
 from .plan_parser import parse_plan_docx_with_release
@@ -59,8 +57,10 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     # Returns:
     # - release_story_to_tests: (release, story) → tests
     # - story_to_release: story → release mapping (for reporting later)
-    release_story_to_tests, story_to_release = parse_plan_docx_with_release(plan_file)
 
+    release_story_to_tests, story_to_release, plan_raw_rows = parse_plan_docx_with_release(
+            plan_file
+    )
 
     # NOTE:
     # release_story_to_tests is keyed as (release, story)
@@ -94,7 +94,6 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
         )
 
         for r in res.rows:
-            print(f"DEBUG ROW → story={r.story} test={r.test}")
 
             exec_rows.append((
                 r.sheet,
@@ -192,9 +191,9 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     # - Debug outputs (optional)
     write_output(
         out_f,
-        [],  # 👈 replace plan.raw_rows with empty list (for now)
+        plan_raw_rows,
         exec_rows,
-        story_to_tests,
+        release_story_to_tests,
         result,
         story_to_release,
         df_exec=df_exec,
