@@ -69,7 +69,6 @@ def _extract_tests_from_cell(cell_text: str) -> Set[str]:
     return results
 
 
-
 RE_RELEASE = re.compile(r"(RLSE\d{7}\s+.+)", re.IGNORECASE)
 RE_TEST_ID = re.compile(r"\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b")
 
@@ -113,7 +112,6 @@ def parse_plan_docx_with_release(path: Path):
 
                 # Assume STORY ID is in column 0
                 story_cell = cells[0] if len(cells) > 0 else ""
-                print(story_cell)
                 stories = _extract_story_ids(story_cell)
 
                 if not stories:

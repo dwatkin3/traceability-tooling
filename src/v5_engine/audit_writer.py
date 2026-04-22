@@ -1,9 +1,10 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Iterable
 import pandas as pd
 import re
 from .status_utils import classify_status
+from .id_normaliser import normalise_id
 
 COL_STORY = "Story"
 COL_STATUS = "Status"
@@ -51,6 +52,79 @@ def _derive_exec_status(
         return "🟢 Passed with evidence"
 
     return "🟠 Mixed / Unknown"
+
+def _build_execution_detail(df_exec, story_to_tests, story_to_release):
+    rows = []
+
+    # Debug (optional – remove later)
+    print("STORY KEY SAMPLE:", list(story_to_tests.keys())[:3])
+
+    # --------------------------------------------------
+    # Pre-group execution by Test ID
+    # --------------------------------------------------
+    exec_by_test = df_exec.groupby("Test ID")
+
+    for story_key, planned_tests in story_to_tests.items():
+
+        # --------------------------------------------------
+        # 🔑 FIX: unpack tuple (release, story)
+        # --------------------------------------------------
+        if isinstance(story_key, (tuple, list)):
+            release = str(story_key[0])
+            story = str(story_key[1])
+        else:
+            story = str(story_key)
+            release_val = story_to_release.get(story, "")
+            if isinstance(release_val, (tuple, list)):
+                release = str(release_val[0])
+            else:
+                release = str(release_val)
+
+        story_clean = story.strip()
+
+        for test_id in sorted(planned_tests):
+
+            test_clean = str(test_id).strip()
+
+            if test_clean in exec_by_test.groups:
+                exec_rows = df_exec.loc[exec_by_test.groups[test_clean]]
+
+                for _, r in exec_rows.iterrows():
+
+                    exec_story = str(r["Story"]).strip()
+
+                    # --------------------------------------------------
+                    # ✅ CORRECT ALIGNMENT LOGIC
+                    # --------------------------------------------------
+                    aligned = "YES" if exec_story == story_clean else "NO"
+
+                    rows.append({
+                        "Release": release,
+                        "Story": story_clean,
+                        "Test ID": test_clean,
+                        "Exec File": r["File"],
+                        "Sheet": r["Sheet"],
+                        "Status": r.get("Test Result", r.get("Status", "")),
+                        "Aligned": aligned,
+                        "Execution Location": exec_story,
+                    })
+
+            else:
+                # --------------------------------------------------
+                # Test never executed anywhere
+                # --------------------------------------------------
+                rows.append({
+                    "Release": release,
+                    "Story": story_clean,
+                    "Test ID": test_clean,
+                    "Exec File": "",
+                    "Sheet": "",
+                    "Status": "NOT EXECUTED",
+                    "Aligned": "NO",
+                    "Execution Location": "",
+                })
+
+    return pd.DataFrame(rows)
 
 def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
@@ -309,6 +383,9 @@ def write_output(
         df_story_map.to_excel(xw, sheet_name='Story_To_Test_Map', index=False)
         df_exec.to_excel(xw, sheet_name='Execution_Attachments', index=False)
        
+        df_detail = _build_execution_detail(df_exec, story_to_tests, story_to_release)
+        df_detail.to_excel(xw, sheet_name="Execution_Detail", index=False)
+        
         if include_audit:
             df_plan_raw.to_excel(xw, sheet_name='Plan_Raw', index=False)
             df_exec.to_excel(xw, sheet_name='Exec_Raw', index=False)

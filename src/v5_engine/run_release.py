@@ -131,11 +131,6 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
             if r.story:
                 exec_story_refs.add(r.story)
     
-
-    # ✅ FINAL DEBUG (only once)
-    print(f"\nFINAL DEBUG: collected {len(exec_rows)} execution rows")
-    print("Sample:", exec_rows[:5])
-
     # -----------------------------
     # RECONCILIATION (PLAN vs EXECUTION)
     # -----------------------------
