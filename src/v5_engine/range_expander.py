@@ -3,24 +3,46 @@ import re
 from typing import Iterable, Set
 from .id_normaliser import normalise_id
 
-RANGE_SEP = r"\s*[\-–—]\s*"
 
-def expand_ranges(entries: Iterable[str]) -> Set[str]:
-    out: Set[str] = set()
-    for raw in entries:
-        if not raw:
-            continue
-        s = normalise_id(str(raw))
-        for part in re.split(r"\s*,\s*", s):
-            if not part:
-                continue
-            m = re.match(rf"^([A-Z]+)(\d+){RANGE_SEP}(?:)?(\d+)$", part)
-            if m:
-                pref, a, b = m.group(1), int(m.group(2)), int(m.group(3))
-                width = len(m.group(2))
-                step = 1 if a <= b else -1
-                for n in range(a, b + step, step):
-                    out.add(f"{pref}{n:0{width}d}")
-            else:
-                out.add(part)
-    return out
+def expand_ranges(tokens: List[str]) -> Set[str]:
+    """
+    Expands tokens like:
+        ME03-ME12 → ME03, ME04, ..., ME12
+
+    Also preserves non-range tokens.
+    """
+
+    results = set()
+
+    for tok in tokens:
+        tok = tok.strip().upper()
+
+        # --------------------------------------------------
+        # MATCH RANGE (e.g. ME03-ME12)
+        # --------------------------------------------------
+        m = re.match(r"^([A-Z]+)(\d+)-([A-Z]+)?(\d+)$", tok)
+
+        if m:
+            prefix1, start_num, prefix2, end_num = m.groups()
+
+            # If second prefix missing, assume same
+            prefix2 = prefix2 or prefix1
+
+            # Only expand if prefixes match
+            if prefix1 == prefix2:
+                start = int(start_num)
+                end = int(end_num)
+
+                width = len(start_num)  # preserve leading zeros
+
+                for i in range(start, end + 1):
+                    results.add(f"{prefix1}{str(i).zfill(width)}")
+
+                continue  # skip normal add
+
+        # --------------------------------------------------
+        # NOT A RANGE → keep as-is
+        # --------------------------------------------------
+        results.add(tok)
+
+    return results

@@ -141,17 +141,34 @@ def parse_execution_xlsx(
             if story.lower() == "nan" or test_id.lower() == "nan":
                 continue
 
+            # --------------------------------------------------
+            # STORY EXTRACTION
+            # --------------------------------------------------
+            # Try to extract valid STRY IDs from the story field
             stories = re.findall(r"STRY\d+", story)
 
-            if not stories:
-                continue
-
-            for s in stories:
+            if stories:
+                # ✅ Standard case: valid story IDs found
+                for s in stories:
+                    all_rows.append(
+                        ExecRow(
+                            sheet=str(sheet),
+                            row=int(ridx) + 2,
+                            story=s,
+                            test=test_id,
+                            status=status_val,
+                            file=path.name,
+                        )
+                    )
+            else:
+                # ⚠️ No valid STRY ID found
+                # KEEP the original value (e.g. "Negative", "N/A", etc.)
+                # This allows downstream logic to detect misalignment
                 all_rows.append(
                     ExecRow(
-                        sheet=sheet,
+                        sheet=str(sheet),
                         row=int(ridx) + 2,
-                        story=s,
+                        story=story.upper(),   # preserve but normalise
                         test=test_id,
                         status=status_val,
                         file=path.name,

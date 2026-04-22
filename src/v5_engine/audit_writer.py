@@ -55,6 +55,13 @@ def _derive_exec_status(
 def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
     df_exec = df_exec.copy()
+
+    #valid_stories = set(story_to_tests.keys())
+
+    #df_exec["Story"] = df_exec["Story"].apply(
+    #lambda s: s if s in valid_stories else None
+    #)
+
     df_exec.columns = [c.strip() for c in df_exec.columns]
     df_exec["Evidence"] = df_exec["Evidence"].astype(str).str.strip().str.lower()
 
@@ -71,12 +78,37 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         group = df_exec[df_exec["Story"] == story]
 
         total_exec = len(group)
+        
         # -----------------------------
-        # TRACEABILITY
+        # TRACEABILITY (ENHANCED)
         # -----------------------------
-        traceability = "🟢 Tests present" if total_exec > 0 else "🔴 No tests in execution"
 
-        # -----------------------------
+        planned = set(planned_tests)
+
+        executed_in_story = set(
+            group["Test ID"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+        )
+
+        all_executed = set(
+            df_exec["Test ID"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+        )
+
+        missing_anywhere = planned - all_executed
+        misaligned = (planned - executed_in_story) & all_executed
+
+        if missing_anywhere:
+            traceability = "🔴 Tests missing"
+        elif misaligned:
+            traceability = "🟡 Tests present (not linked)"
+        else:
+            traceability = "🟢 Tests present"
+                # -----------------------------
         # COUNTS
         # -----------------------------
         status_counts = group["StatusClass"].value_counts()
@@ -163,7 +195,26 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
         exec_tests = set(group["Test ID"].dropna().astype(str))
         planned_tests = set(planned_tests)
 
-        missing = planned_tests - exec_tests
+        # --------------------------------------------------
+        # ALL executed tests across ALL stories
+        # --------------------------------------------------
+        all_exec_tests = set(
+            df_exec["Test ID"]
+            .dropna()
+            .astype(str)
+        )
+
+        # --------------------------------------------------
+        # TRUE MISSING (not executed anywhere)
+        # --------------------------------------------------
+        genuine_missing = planned_tests - all_exec_tests
+
+        # --------------------------------------------------
+        # MISALIGNED (executed, but not under this story)
+        # --------------------------------------------------
+        misaligned = (planned_tests - exec_tests) & all_exec_tests
+
+
         extra = exec_tests - planned_tests
 
         # Try to get source info (first occurrence)
@@ -181,13 +232,14 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
             "Sheet": source_sheet,
             "Planned Tests": ", ".join(sorted(planned_tests)),
             "Execution Tests": ", ".join(sorted(exec_tests)),
-            "Missing Tests": ", ".join(sorted(missing)),
+            "Missing Tests": ", ".join(sorted(genuine_missing)),
+            "Misaligned Tests": ", ".join(sorted(misaligned)),
             "Extra Tests": ", ".join(sorted(extra)),
             "Planned Count": len(planned_tests),
             "Execution Count": len(exec_tests),
-            "Missing Count": len(missing),
+            "Missing Count": len(genuine_missing),
             "Extra Count": len(extra),
-            "Has Gap": len(missing) > 0 or len(extra) > 0,
+            "Has Gap": len(genuine_missing) > 0 or len(extra) > 0,
         })
 
     return pd.DataFrame(rows)

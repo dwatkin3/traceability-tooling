@@ -1,5 +1,6 @@
 # Mac
 .DS_Store
+releases/.DS_Store/
 
 # Python
 __pycache__/
@@ -8,6 +9,10 @@ __pycache__/
 # Outputs
 outputs/
 */debug/
+
+# Old releases
+old_releases/
+*.*
 
 # Excel temp
 ~$*.xlsx

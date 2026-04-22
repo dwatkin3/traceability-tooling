@@ -22,6 +22,17 @@ from .plan_parser import parse_plan_docx_with_release
 from collections import defaultdict
 import re
 
+def normalise_test_id(t: str) -> str:
+    if t is None:
+        return ""
+    return (
+        str(t)
+        .upper()
+        .strip()
+        .replace("\u00A0", "")
+        .replace(" ", "")
+    )
+
 def derive_test_result(status, has_evidence, pass_values):
     s = (status or "").lower().strip()
     pass_values = [p.lower().strip() for p in pass_values]
@@ -69,7 +80,17 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     story_to_tests = defaultdict(set)
     for (_, story), tests in release_story_to_tests.items():
         story_to_tests[story].update(tests)
-    
+
+    # --------------------------------------------------
+    # NORMALISE PLAN TEST IDS
+    # Ensures consistency with execution data
+    # This is CRITICAL for matching logic later
+    # --------------------------------------------------
+    for story in story_to_tests:
+        story_to_tests[story] = set(
+            normalise_test_id(t) for t in story_to_tests[story]
+        )
+            
     # -----------------------------
     # PARSE EXECUTION FILES
     # -----------------------------
@@ -143,6 +164,35 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
         "Sheet", "Row", "Story", "Test ID", "Status", "File"
     ])
 
+    # --------------------------------------------------
+    # NORMALISE IDS (CRITICAL FOR MATCHING)
+    # Ensures consistency between:
+    # - Plan (Word)
+    # - Execution (Excel)
+    # - Evidence (filenames)
+    # --------------------------------------------------
+    df_exec["Test ID"] = df_exec["Test ID"].apply(normalise_test_id)
+
+    # --------------------------------------------------
+    # NORMALISE STORY IDS
+    # - Trim whitespace
+    # - Uppercase for consistency
+    # - Remove obvious junk (e.g. blank, 'nan')
+    # NOTE:
+    # We DO NOT force-match to plan stories here
+    # (we need to detect misalignment later)
+    # --------------------------------------------------
+    df_exec["Story"] = (
+        df_exec["Story"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    # Clean empty / invalid values
+    df_exec.loc[df_exec["Story"].isin(["", "NAN", "NONE"]), "Story"] = ""
+
+
     # Evidence is determined by filename match:
     # if any file in /evidence contains the Test ID → Evidence = Yes
     evidence_files = []
@@ -178,8 +228,6 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     out_folder.mkdir(parents=True, exist_ok=True)
     fname=f'Traceability_Reconciliation_{release_id}.xlsx'
     out_f=output_path or (out_folder/fname)
-
-    print("DF_EXEC COLUMNS:", df_exec.columns.tolist())
 
     # -----------------------------
     # WRITE OUTPUT FILE
