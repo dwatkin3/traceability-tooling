@@ -130,32 +130,28 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
     df_exec = df_exec.copy()
 
-    #valid_stories = set(story_to_tests.keys())
-
-    #df_exec["Story"] = df_exec["Story"].apply(
-    #lambda s: s if s in valid_stories else None
-    #)
-
     df_exec.columns = [c.strip() for c in df_exec.columns]
     df_exec["Evidence"] = df_exec["Evidence"].astype(str).str.strip().str.lower()
 
-    # ✅ PRE-COMPUTE STATUS CLASS ONCE (fixes warnings + consistency)
     df_exec["StatusClass"] = df_exec["Status"].apply(
         lambda s: classify_status(s, pass_values)
     )
 
+    # --------------------------------------------------
+    # GLOBAL execution set
+    # --------------------------------------------------
+    all_executed = set(
+        df_exec["Test ID"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+    )
 
     summary_rows = []
 
     for story, planned_tests in sorted(story_to_tests.items()):
 
         group = df_exec[df_exec["Story"] == story]
-
-        total_exec = len(group)
-        
-        # -----------------------------
-        # TRACEABILITY (ENHANCED)
-        # -----------------------------
 
         planned = set(planned_tests)
 
@@ -166,25 +162,27 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             .str.strip()
         )
 
-        all_executed = set(
-            df_exec["Test ID"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-        )
-
-        missing_anywhere = planned - all_executed
+        # --------------------------------------------------
+        # TRACEABILITY (CORRECT)
+        # --------------------------------------------------
+        genuine_missing = planned - all_executed
         misaligned = (planned - executed_in_story) & all_executed
 
-        if missing_anywhere:
+        if genuine_missing:
             traceability = "🔴 Tests missing"
         elif misaligned:
             traceability = "🟡 Tests present (not linked)"
         else:
             traceability = "🟢 Tests present"
-                # -----------------------------
-        # COUNTS
-        # -----------------------------
+
+        # --------------------------------------------------
+        # EXECUTION COUNT (ACTUAL)
+        # --------------------------------------------------
+        total_exec = len(executed_in_story)
+
+        # --------------------------------------------------
+        # STATUS COUNTS (story-local)
+        # --------------------------------------------------
         status_counts = group["StatusClass"].value_counts()
 
         passed = status_counts.get("PASS", 0)
@@ -192,17 +190,17 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         in_progress = status_counts.get("IN_PROGRESS", 0)
         not_started = status_counts.get("NOT_STARTED", 0)
 
-        # -----------------------------
+        # --------------------------------------------------
         # EVIDENCE
-        # -----------------------------
+        # --------------------------------------------------
         passed_with_evidence = len(group[
             (group["StatusClass"] == "PASS") &
             (group["Evidence"] == "yes")
         ])
 
-        # -----------------------------
+        # --------------------------------------------------
         # EXEC STATUS
-        # -----------------------------
+        # --------------------------------------------------
         exec_status = _derive_exec_status(
             total_exec,
             passed,
@@ -212,42 +210,50 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             passed_with_evidence
         )
 
-        # -----------------------------
-        # RELEASE
-        # -----------------------------
-        release = story_to_release.get(story, "UNKNOWN")
+        # --------------------------------------------------
+        # ISSUE BUILDING (CLEAN)
+        # --------------------------------------------------
+        issues = []
 
-        # -----------------------------
-        # ISSUE BUILDING
-        # -----------------------------
+        if genuine_missing:
+            issues.append(f"Missing: {', '.join(sorted(genuine_missing))}")
+
+        if misaligned:
+            issues.append(f"Misaligned: {', '.join(sorted(misaligned))}")
+
+        extra = executed_in_story - planned
+        if extra:
+            issues.append(f"Extra: {', '.join(sorted(extra))}")
+
         failed_tests = group[group["StatusClass"] == "FAIL"]["Test ID"].tolist()
+        if failed_tests:
+            issues.append(f"Failed: {', '.join(sorted(set(failed_tests)))}")
 
         missing_evidence_tests = group[
             (group["StatusClass"] == "PASS") &
-            (group["Evidence"] == "No")
+            (group["Evidence"] == "no")
         ]["Test ID"].tolist()
 
-        issues = []
-
-        if failed_tests:
-            issues.append(f"Failed: {', '.join(sorted(failed_tests))}")
-
         if missing_evidence_tests:
-            issues.append(f"Missing evidence: {', '.join(sorted(missing_evidence_tests))}")
+            issues.append(f"Missing evidence: {', '.join(sorted(set(missing_evidence_tests)))}")
 
         issue_text = " | ".join(issues) if issues else ""
 
+        # --------------------------------------------------
+        # RELEASE
+        # --------------------------------------------------
+        release = story_to_release.get(story, "UNKNOWN")
 
-        # -----------------------------
-        # APPEND ROW TO SUMMARY SHEET
-        # -----------------------------
+        # --------------------------------------------------
+        # APPEND
+        # --------------------------------------------------
         summary_rows.append({
             "Release": release,
             "Story": story,
             "Traceability": traceability,
             "Exec Status": exec_status,
             "Issue": issue_text,
-            "Planned Tests": len(planned_tests),
+            "Planned Tests": len(planned),
             "Execution Tests": total_exec,
             "Passed": int(passed),
             "Failed": int(failed),
@@ -256,11 +262,19 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             "Passed w/ Evidence": int(passed_with_evidence)
         })
 
-
     return pd.DataFrame(summary_rows).sort_values(["Release", "Story"])
 
 def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
     rows = []
+
+    # --------------------------------------------------
+    # ALL executed tests across ALL stories
+    # --------------------------------------------------
+    all_exec_tests = set(
+        df_exec["Test ID"]
+        .dropna()
+        .astype(str)
+    )
 
     for story, planned_tests in sorted(story_to_tests.items()):
 
@@ -270,13 +284,9 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
         planned_tests = set(planned_tests)
 
         # --------------------------------------------------
-        # ALL executed tests across ALL stories
+        # MISALIGNED (executed, but not under this story)
         # --------------------------------------------------
-        all_exec_tests = set(
-            df_exec["Test ID"]
-            .dropna()
-            .astype(str)
-        )
+        misaligned = (planned_tests - exec_tests) & all_exec_tests
 
         # --------------------------------------------------
         # TRUE MISSING (not executed anywhere)
@@ -284,14 +294,25 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
         genuine_missing = planned_tests - all_exec_tests
 
         # --------------------------------------------------
-        # MISALIGNED (executed, but not under this story)
+        # STORY MISSING (includes misaligned)
         # --------------------------------------------------
-        misaligned = (planned_tests - exec_tests) & all_exec_tests
+        story_missing = genuine_missing.union(misaligned)
 
-
+        # --------------------------------------------------
+        # EXTRA (executed under story but not planned)
+        # --------------------------------------------------
         extra = exec_tests - planned_tests
 
-        # Try to get source info (first occurrence)
+        # --------------------------------------------------
+        # EXECUTION (aligned + misaligned)
+        # --------------------------------------------------
+        # --- DISPLAY (what actually ran here)
+        execution_tests_display = exec_tests
+
+        # --- COVERAGE (used for counts)
+        execution_tests_coverage = (planned_tests & exec_tests) | misaligned
+
+        # Try to get source info
         if not group.empty:
             source_file = group["File"].iloc[0]
             source_sheet = group["Sheet"].iloc[0]
@@ -305,15 +326,19 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
             "Source File": source_file,
             "Sheet": source_sheet,
             "Planned Tests": ", ".join(sorted(planned_tests)),
-            "Execution Tests": ", ".join(sorted(exec_tests)),
-            "Missing Tests": ", ".join(sorted(genuine_missing)),
+            "Execution Tests": ", ".join(sorted(execution_tests_display)),
+            "Missing Tests": ", ".join(sorted(story_missing)),
             "Misaligned Tests": ", ".join(sorted(misaligned)),
             "Extra Tests": ", ".join(sorted(extra)),
             "Planned Count": len(planned_tests),
-            "Execution Count": len(exec_tests),
-            "Missing Count": len(genuine_missing),
+            "Execution Count": len(execution_tests_coverage),
+            "Missing Count": len(story_missing),
             "Extra Count": len(extra),
-            "Has Gap": len(genuine_missing) > 0 or len(extra) > 0,
+            "Has Gap": any([
+                len(story_missing) > 0,
+                len(extra) > 0,
+                len(misaligned) > 0
+            ]),
         })
 
     return pd.DataFrame(rows)
