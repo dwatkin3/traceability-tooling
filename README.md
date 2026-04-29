@@ -20,15 +20,18 @@ supplier handover).
 
 ## 🔄 End-to-End Flow
 
-``` mermaid
+```mermaid
 flowchart LR
-    A[Plan (.docx)] --> B[Parsing Layer]
-    C[Execution (.xlsx)] --> B
-    B --> D[Reconciliation Engine]
-    D --> E[Output Generator]
-    E --> F[Excel Report (Audit Output)]
-```
+    A["Plan (.docx)"]
+    C["Execution (.xlsx)"]
 
+    A -->|Parse| B["Parsing Layer"]
+    C -->|Parse| B
+
+    B -->|Reconcile| D["Reconciliation Engine"]
+    D -->|Generate| E["Output Generator"]
+    E --> F["Excel Report (Audit Output)"]
+```
 **Explanation:** - Plan defines intended coverage - Execution captures
 actual results - Engine reconciles differences deterministically -
 Output provides audit-ready reporting
