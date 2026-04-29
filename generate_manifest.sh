@@ -19,14 +19,7 @@ MANIFEST="$RELEASE_DIR/manifest.json"
 [[ -d "$EXEC_DIR"   ]] || { echo "ERROR: Missing $EXEC_DIR";   exit 1; }
 
 # ---- PLAN (.docx) ----
-# ----------------------
-# ---- PLAN (.docx) ----
 PLAN_FILE_ABS="$(ls -t "$PLAN_DIR"/*.docx 2>/dev/null | head -n 1)"
-
-if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
-  echo "ERROR: No .docx plan file found in $PLAN_DIR"
-  exit 1
-fi
 
 if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
   echo "ERROR: No .docx plan file found in $PLAN_DIR"
@@ -37,33 +30,32 @@ fi
 PLAN_FILE_REL="plan/$(basename "$PLAN_FILE_ABS")"
 
 # ---- EXECUTION (.xlsx) ----
-mapfile -d '' EXEC_FILES_ABS < <(
-  find "$EXEC_DIR" -maxdepth 1 -type f -name '*.xlsx' -print0 \
-  | sort -z
-)
+EXEC_FILES_ABS=()
+while IFS= read -r -d '' file; do
+  EXEC_FILES_ABS+=("$file")
+done < <(find "$EXEC_DIR" -maxdepth 1 -type f -name '*.xlsx' -print0)
+
 if [[ ${#EXEC_FILES_ABS[@]} -eq 0 ]]; then
   echo "ERROR: No .xlsx execution files found in $EXEC_DIR"
   exit 1
 fi
 
-# Build JSON array of execution files (relative paths with execution/)
+# Build JSON array of execution files
 EXEC_JSON_LINES=()
 for f in "${EXEC_FILES_ABS[@]}"; do
-  f="${f%$'\n'}"  # trim any trailing newline
   rel="execution/$(basename "$f")"
-  # JSON-escape any embedded quotes if present
-  rel_escaped=${rel//\"/\\\"}
+  rel_escaped=${rel//"/\"}
   EXEC_JSON_LINES+=("    \"$rel_escaped\"")
 done
 
 # Join with commas and newlines
 EXEC_JSON_JOINED="$(printf ",\n%s" "${EXEC_JSON_LINES[@]}")"
-EXEC_JSON_JOINED="${EXEC_JSON_JOINED:2}"  # drop leading comma+newline
+EXEC_JSON_JOINED="${EXEC_JSON_JOINED:2}"
 
 # ---- Write manifest.json ----
 cat > "$MANIFEST" <<EOF
 {
-  "plan_file": "$(printf %s "$PLAN_FILE_REL" | sed 's/"/\\"/g')",
+  "plan_file": "$(printf %s "$PLAN_FILE_REL" | sed 's/"/\\\"/g')",
   "execution_files": [
 $EXEC_JSON_JOINED
   ]
