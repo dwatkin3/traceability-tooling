@@ -20,12 +20,13 @@ MANIFEST="$RELEASE_DIR/manifest.json"
 
 # ---- PLAN (.docx) ----
 # Choose the newest .docx; change 'tail -n 1' to 'head -n 1' if you prefer "oldest" or "first"
-PLAN_FILE_ABS="$(
-  find "$PLAN_DIR" -maxdepth 1 -type f -name '*.docx' -printf '%T@ %p\n' \
-  | sort -n \
-  | tail -n 1 \
-  | cut -d' ' -f2-
-)"
+# ---- PLAN (.docx) ----
+PLAN_FILE_ABS="$(ls -t "$PLAN_DIR"/*.docx 2>/dev/null | head -n 1)"
+
+if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
+  echo "ERROR: No .docx plan file found in $PLAN_DIR"
+  exit 1
+fi
 
 if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
   echo "ERROR: No .docx plan file found in $PLAN_DIR"
