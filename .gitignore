@@ -57,3 +57,8 @@ releases/2026.04/**/.DS_Store
 # -----------------------------
 .vscode/
 .idea/
+
+# -----------------------------
+# remove generated files
+# -----------------------------
+tests/regression/output/

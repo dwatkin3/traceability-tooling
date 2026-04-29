@@ -36,7 +36,10 @@ fi
 PLAN_FILE_REL="plan/$(basename "$PLAN_FILE_ABS")"
 
 # ---- EXECUTION (.xlsx) ----
-mapfile -d '' EXEC_FILES_ABS < <(find "$EXEC_DIR" -maxdepth 1 -type f -name '*.xlsx' -print0)
+mapfile -d '' EXEC_FILES_ABS < <(
+  find "$EXEC_DIR" -maxdepth 1 -type f -name '*.xlsx' -print0 \
+  | sort -z
+)
 if [[ ${#EXEC_FILES_ABS[@]} -eq 0 ]]; then
   echo "ERROR: No .xlsx execution files found in $EXEC_DIR"
   exit 1

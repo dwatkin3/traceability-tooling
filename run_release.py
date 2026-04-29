@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""
+run_release.py
+
+Entry point for executing a full traceability reconciliation run
+against a given release folder. Orchestrates parsing, mapping,
+and reconciliation steps.
+"""
+
 import argparse
 import json
 import pathlib

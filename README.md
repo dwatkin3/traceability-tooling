@@ -18,6 +18,35 @@ supplier handover).
 
 ------------------------------------------------------------------------
 
+## 🔄 End-to-End Flow
+
+``` mermaid
+flowchart LR
+    A[Plan (.docx)] --> B[Parsing Layer]
+    C[Execution (.xlsx)] --> B
+    B --> D[Reconciliation Engine]
+    D --> E[Output Generator]
+    E --> F[Excel Report (Audit Output)]
+```
+
+**Explanation:** - Plan defines intended coverage - Execution captures
+actual results - Engine reconciles differences deterministically -
+Output provides audit-ready reporting
+
+------------------------------------------------------------------------
+
+## 📊 Example Output (Excel)
+
+Below is a representative example of the reconciliation output format:
+
+![Example Output](./docs/sample_output.png)
+
+**Key sheets included:** - Summary (high-level status) - Traceability
+Gaps (diagnostics) - Execution Detail (audit trail) - Supporting raw
+data sheets
+
+------------------------------------------------------------------------
+
 ## Why This Exists
 
 In real delivery environments, inconsistencies frequently occur:
@@ -68,9 +97,46 @@ A test marked as passed with valid supporting evidence.
 
 From the repository root:
 
+# Running a Test Release
+
+This repository includes a sample release (`2026.04`) to demonstrate
+end-to-end functionality.
+
+## 1. Set up the environment
+
 ``` bash
-python run_reconcile.py YYYY.MM
+./reset_venv.sh
 ```
+
+## 2. (Optional) Regenerate the manifest
+
+If you've modified the release contents:
+
+``` bash
+./generate_manifest.sh 2026.04
+```
+
+## 3. Run the reconciliation
+
+``` bash
+./run_release.sh 2026.04
+```
+
+## Expected behaviour
+
+The tool will: - Load the release manifest - Parse plan and execution
+files - Perform traceability reconciliation - Output results
+(e.g. reports, logs)
+
+## Advanced usage (optional)
+
+You can run the Python entry point directly if needed:
+
+``` bash
+python run_release.py --release 2026.04
+```
+
+(Requires an active virtual environment)
 
 Outputs will be generated in:
 
@@ -343,6 +409,50 @@ python tests/regression/run_regression.py
 
 ------------------------------------------------------------------------
 
+# Project Utilities
+
+## reset_venv.sh
+
+Recreates the project's Python virtual environment from scratch.
+
+-   Deletes any existing `.venv`
+-   Creates a fresh virtual environment
+-   Upgrades core packaging tools (`pip`, `setuptools`, `wheel`)
+-   Installs dependencies from `requirements.txt`
+
+Use this when: - setting up the project for the first time -
+dependencies become inconsistent - switching environments
+
+Example: ./reset_venv.sh
+
+## run_release.sh
+
+Convenience wrapper to execute a release reconciliation run.
+
+-   Activates the project's virtual environment
+-   Calls `run_release.py` with the provided release ID
+
+Ensures consistent execution without requiring manual environment setup.
+
+Example: ./run_release.sh 2026.04
+
+## generate_manifest.sh
+
+Automatically generates a `manifest.json` for a given release.
+
+-   Validates required folder structure:
+    -   `plan/`
+    -   `execution/`
+-   Selects the most recent `.docx` file as the plan
+-   Collects all `.xlsx` execution files
+-   Writes a structured manifest with relative paths
+
+This removes the need to manually maintain manifest files and ensures
+consistency.
+
+Example: ./generate_manifest.sh 2026.04
+
+
 ## Summary
 
 This tool is designed to be:
@@ -354,3 +464,5 @@ This tool is designed to be:
 
 It should be treated as a controlled component within the delivery
 process, not a disposable script.
+
+
