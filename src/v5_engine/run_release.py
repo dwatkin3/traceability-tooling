@@ -61,6 +61,8 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     manifest=json.loads(Path(manifest_path).read_text())
     plan_file=root_dir/manifest['plan_file']
     exec_files=[root_dir/p for p in manifest.get('execution_files', [])]
+    
+    print("RUN_RELEASE STARTED")
 
     # -----------------------------
     # LOAD TEST PLAN (source of truth)
@@ -245,3 +247,27 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
         debug_dir=out_folder/'debug'
 )
     return {"output": str(Path(out_f).resolve())}
+    
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run Traceability Reconciler")
+    parser.add_argument("--release", required=True)
+    args = parser.parse_args()
+
+    root = Path(__file__).resolve().parents[2]
+    rel_dir = root / "releases" / args.release
+
+    print(f"Running release: {args.release}")
+    print(f"Manifest: {rel_dir / 'manifest.json'}")
+
+    result = run_release(
+        root_dir=rel_dir,
+        manifest_path=rel_dir / "manifest.json",
+        settings_path=root / "config/settings.json",
+        patterns_path=root / "config/knowledge/patterns.json",
+        hints_path=root / "config/knowledge/column_hints.json",
+    )
+
+    print("Output written to:", result["output"])
