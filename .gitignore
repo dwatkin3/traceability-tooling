@@ -23,8 +23,9 @@ old_releases/
 releases/**/execution/*.xlsx
 releases/**/plan/*.docx
 
-releases/**/execution/
-releases/**/plan/JobsToDo.txt
+releases/*
+!releases/2026.04/
+!releases/2026.04/**
 
 # Local notes / debug
 JobsToDo.txt
