@@ -39,7 +39,8 @@ for f in "$EXEC_DIR"/*.xlsx; do
   if [ -z "$EXEC_JSON" ]; then
     EXEC_JSON="    \"$rel\""
   else
-    EXEC_JSON="$EXEC_JSON,\n    \"$rel\""
+    EXEC_JSON="$EXEC_JSON
+    \"$rel\""
   fi
 done
 
