@@ -35,3 +35,4 @@ debug*.txt
 releases/**/evidence/
 
 .DS_Store
+.venv/
