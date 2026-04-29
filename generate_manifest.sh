@@ -1,6 +1,45 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ==========================================================
+# generate_manifest.sh
+#
+# Purpose:
+#   Generates a manifest.json file for a given release folder.
+#
+#   The manifest defines the inputs required by the reconciliation
+#   pipeline:
+#     - The latest test plan document (.docx)
+#     - All execution files (.xlsx)
+#
+# Behaviour:
+#   - Identifies the most recently modified .docx file in /plan
+#   - Collects all .xlsx files in /execution
+#   - Writes a clean, deterministic manifest.json
+#
+# Output:
+#   releases/<release-id>/manifest.json
+#
+# Usage:
+#   ./generate_manifest.sh <release-id>
+#   e.g.
+#     ./generate_manifest.sh 2026.04
+#
+# Notes:
+#   - The release ID is supplied via CLI (not stored in manifest)
+#   - Output paths are relative to the release folder
+#   - Designed to work on macOS and Linux (no GNU-specific flags)
+#
+# Example output:
+# {
+#   "plan_file": "plan/Some Plan.docx",
+#   "execution_files": [
+#     "execution/File1.xlsx",
+#     "execution/File2.xlsx"
+#   ]
+# }
+# ==========================================================
+
 # Usage check
 if [ $# -lt 1 ]; then
   echo "Usage: $0 <release-id>   (e.g. 2026.04)"
