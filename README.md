@@ -160,27 +160,38 @@ These support traceability back to source data.
 
 ------------------------------------------------------------------------
 
-## Regression Testing
+## Regression Testing 
 
-The tool includes regression validation to ensure stability.
+The engine includes automated regression validation to guarantee
+deterministic behaviour.
 
-Run:
+### Run regression tests:
 
 ``` bash
 python tests/regression/run_regression.py
 ```
 
-This will:
+### What this does:
 
-1.  Run the engine\
-2.  Compare outputs to a baseline\
-3.  Fail if differences exist
+1.  Runs the reconciliation engine\
+2.  Generates a fresh output file\
+3.  Compares it to a known baseline\
+4.  Fails if any differences are detected
 
-This guarantees:
+### Expected output:
 
--   No unintended behavioural drift\
--   Safe refactoring\
--   Reproducible results
+    ✅ Summary matches
+    ✅ Traceability Gaps matches
+    ✅ Execution_Detail matches
+
+    ✅ REGRESSION PASSED
+
+### If it fails:
+
+-   A mismatch will be displayed\
+-   Investigate differences before committing\
+-   Only update baseline if change is intentional
+
 
 ------------------------------------------------------------------------
 
