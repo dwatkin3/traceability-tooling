@@ -1,38 +1,56 @@
-# Mac
+# NOTE:
+# This repo intentionally includes only a single sample release (2026.04).
+# All other release data is excluded as it may contain client-specific content.
+
+# -----------------------------
+# OS / System files
+# -----------------------------
 .DS_Store
-releases/.DS_Store/
+Thumbs.db
 
+# -----------------------------
 # Python
+# -----------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 
-# Outputs
+# Virtual environments
+.venv/
+venv/
+env/
+
+# -----------------------------
+# Build / packaging
+# -----------------------------
+build/
+dist/
+*.egg-info/
+
+# -----------------------------
+# Outputs / generated files
+# -----------------------------
 outputs/
-*/debug/
+*.log
+*.tmp
 
-# Old releases
-old_releases/
-*.*
+# -----------------------------
+# Local dev artefacts
+# -----------------------------
+snapshot*
+reconcile_*.xlsx
+JobsToDo.md
 
-# Excel temp
-~$*.xlsx
-~$*.docx
-
-# Optional: ignore releases execution files
-# Uncomment if you DON'T want these tracked
-releases/**/execution/*.xlsx
-releases/**/plan/*.docx
-
+# -----------------------------
+# Release data control
+# -----------------------------
 releases/*
 !releases/2026.04/
 !releases/2026.04/**
 
-# Local notes / debug
-JobsToDo.txt
-debug*.txt
-
-# Generated outputs / evidence
-releases/**/evidence/
-
-.DS_Store
-.venv/
+# -----------------------------
+# IDE / editor
+# -----------------------------
+.vscode/
+.idea/
