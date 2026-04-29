@@ -39,10 +39,12 @@ for f in "$EXEC_DIR"/*.xlsx; do
   if [ -z "$EXEC_JSON" ]; then
     EXEC_JSON="    \"$rel\""
   else
-    EXEC_JSON="$EXEC_JSON
-    \"$rel\""
+    EXEC_JSON="${EXEC_JSON},\n    \"$rel\""
   fi
 done
+
+# Convert literal \n into real newlines
+EXEC_JSON=$(printf "%b" "$EXEC_JSON")
 
 if [ -z "$EXEC_JSON" ]; then
   echo "ERROR: No .xlsx execution files found in $EXEC_DIR"
