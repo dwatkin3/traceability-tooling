@@ -14,4 +14,4 @@ fi
 # Activate the virtual environment for this project explicitly
 source "$(dirname "$0")/.venv/bin/activate"
 
-python3 run_release.py --release "$1"
+PYTHONPATH="$(dirname "$0")" python3 src/v5_engine/run_release.py --release "$1"
