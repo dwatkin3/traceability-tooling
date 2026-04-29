@@ -3,6 +3,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 import pandas as pd
 import re
+from .id_normaliser import normalise_text, normalise_id
 
 
 @dataclass
@@ -21,32 +22,71 @@ class ExecParseResult:
 
 
 def _find_candidate_column(columns: List[str], candidates: List[str]) -> Optional[int]:
-    cols_lower = [str(c).strip().lower() for c in columns]
+    """
+    Find the index of a column whose name matches one of the candidate names.
 
-    # Exact match first
-    for cand in candidates:
-        cand = cand.lower()
-        for i, col in enumerate(cols_lower):
-            if cand == col:
-                return i
+    Matching strategy:
+    1. Exact match (case-insensitive, trimmed)
+    2. Partial match (candidate contained within column name)
 
-    # Fallback: partial match
-    for cand in candidates:
-        cand = cand.lower()
-        for i, col in enumerate(cols_lower):
+    Returns:
+        Index of matching column, or None if no match found.
+    """
+
+    # --------------------------------------------------
+    # Normalise columns ONCE (lowercase + trimmed)
+    # --------------------------------------------------
+    cols_norm = [str(c).strip().lower() for c in columns]
+
+    # Normalise candidates once (avoids repeated work)
+    candidates_norm = [str(c).strip().lower() for c in candidates]
+
+    # --------------------------------------------------
+    # 1. Exact match (preferred)
+    # --------------------------------------------------
+    for cand in candidates_norm:
+        for idx, col in enumerate(cols_norm):
+            if col == cand:
+                return idx
+
+    # --------------------------------------------------
+    # 2. Partial match (fallback)
+    # --------------------------------------------------
+    for cand in candidates_norm:
+        for idx, col in enumerate(cols_norm):
             if cand in col:
-                return i
+                return idx
 
     return None
-
 
 def _extract_with_patterns(text: str, patterns: List[str]) -> Optional[str]:
-    for p in patterns:
-        m = re.search(p, text, re.IGNORECASE)
-        if m:
-            return m.group(0).upper()
-    return None
+    """
+    Attempt to extract a value from text using a list of regex patterns.
 
+    Returns the first match found, normalised as an ID.
+    """
+
+    # --------------------------------------------------
+    # Guard against None / empty input
+    # --------------------------------------------------
+    if not text:
+        return None
+
+    text = str(text)
+
+    # --------------------------------------------------
+    # Try each pattern in order
+    # --------------------------------------------------
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            # --------------------------------------------------
+            # Normalise using shared ID normaliser
+            # (removes whitespace + uppercases consistently)
+            # --------------------------------------------------
+            return normalise_id(match.group(0))
+
+    return None
 
 def parse_execution_xlsx(
     path: Path,
@@ -66,7 +106,10 @@ def parse_execution_xlsx(
 
     for sheet in xls.sheet_names:
 
-        sheet_lower = str(sheet).lower()
+        # --------------------------------------------------
+        # Skip ignored sheets (normalised text comparison)
+        # --------------------------------------------------
+        sheet_lower = normalise_text(sheet).lower()
         if any(ig in sheet_lower for ig in ignore_sheets):
             print(f"Skipping sheet '{sheet}' (ignored)")
             continue
@@ -77,19 +120,23 @@ def parse_execution_xlsx(
                 sheet_name=sheet,
                 engine="openpyxl",
                 dtype=str,
-                keep_default_na=False
+                keep_default_na=False,
             )
 
-            # Clean all values
-            df = df.apply(lambda col: col.astype(str).str.strip())
+            if df.empty:
+                continue
+
+            # --------------------------------------------------
+            # Normalise columns + all cell text ONCE
+            # --------------------------------------------------
+            df.columns = [normalise_text(c) for c in df.columns]
+
+            for col in df.columns:
+                df[col] = df[col].map(normalise_text)
 
         except Exception as e:
             print(f"Failed reading sheet {sheet}: {e}")
             continue
-
-        if df.empty:
-            continue
-
 
         df_cols = list(df.columns)
 
@@ -99,76 +146,80 @@ def parse_execution_xlsx(
 
         for ridx, row in df.iterrows():
 
-            if row.isna().all():
+            # --------------------------------------------------
+            # Skip completely empty rows
+            # --------------------------------------------------
+            if not any(row):
                 continue
 
-            # ---------------- STATUS ----------------
+            # --------------------------------------------------
+            # STATUS (text field → normalise_text)
+            # --------------------------------------------------
             status_val = ""
             if idx_status is not None and idx_status < len(row):
-                status_val = str(row.iloc[idx_status] or "").strip()
+                status_val = normalise_text(row.iloc[idx_status])
 
-            # ---------------- TEST ID ----------------
+            # --------------------------------------------------
+            # TEST ID (identifier → normalise_id)
+            # --------------------------------------------------
             test_val = None
 
             if idx_test is not None and idx_test < len(row):
+                test_val = normalise_id(row.iloc[idx_test])
 
-                test_val = str(row.iloc[idx_test] or "").strip()
-
-            # Fallback extraction
+            # Fallback extraction from entire row
             if not test_val:
-                combined = " ".join([str(v) for v in row.values if pd.notna(v)])
+                combined = " ".join([normalise_text(v) for v in row.values if v])
                 test_val = _extract_with_patterns(combined, testid_patterns)
 
             if not test_val:
                 continue
 
-            # ---------------- STORY ----------------
+            # --------------------------------------------------
+            # STORY (identifier → normalise_id)
+            # --------------------------------------------------
             story_val = None
 
             if idx_story is not None and idx_story < len(row):
-                story_val = str(row.iloc[idx_story] or "").strip()
+                story_val = normalise_id(row.iloc[idx_story])
 
+            # Fallback extraction
             if not story_val:
-                combined = " ".join([str(v) for v in row.values if pd.notna(v)])
+                combined = " ".join([normalise_text(v) for v in row.values if v])
                 story_val = _extract_with_patterns(combined, story_patterns)
 
-            story = (story_val or "").strip()
-            test_id = (test_val or "").strip()
-
-            if not story or not test_id:
+            if not story_val:
                 continue
 
-            if story.lower() == "nan" or test_id.lower() == "nan":
-                continue
+            story = story_val
+            test_id = test_val
 
             # --------------------------------------------------
-            # STORY EXTRACTION
+            # STORY EXTRACTION (handles multiple STRY IDs)
             # --------------------------------------------------
-            # Try to extract valid STRY IDs from the story field
             stories = re.findall(r"STRY\d+", story)
 
             if stories:
-                # ✅ Standard case: valid story IDs found
+                # Standard case: one or more valid story IDs
                 for s in stories:
                     all_rows.append(
                         ExecRow(
-                            sheet=str(sheet),
+                            sheet=normalise_text(sheet),
                             row=int(ridx) + 2,
-                            story=s,
+                            story=normalise_id(s),
                             test=test_id,
                             status=status_val,
                             file=path.name,
                         )
                     )
             else:
-                # ⚠️ No valid STRY ID found
-                # KEEP the original value (e.g. "Negative", "N/A", etc.)
-                # This allows downstream logic to detect misalignment
+                # Non-standard story (e.g. NEGATIVE, N/A)
+                # Keep but normalise as ID for consistency
                 all_rows.append(
                     ExecRow(
-                        sheet=str(sheet),
+                        sheet=normalise_text(sheet),
                         row=int(ridx) + 2,
-                        story=story.upper(),   # preserve but normalise
+                        story=normalise_id(story),
                         test=test_id,
                         status=status_val,
                         file=path.name,

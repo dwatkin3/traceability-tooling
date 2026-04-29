@@ -7,7 +7,7 @@ import re
 from collections import defaultdict
 from docx import Document
 from .range_expander import expand_ranges
-from .id_normaliser import normalise_id
+from .id_normaliser import normalise_id, normalise_text
 
 # -----------------------------
 # ID PATTERNS (single source of truth)
@@ -107,7 +107,7 @@ def parse_plan_docx_with_release(path: Path):
                 continue  # tables before first RLSE header are ignored
 
             for row in table.rows:
-                cells = [c.text.strip() for c in row.cells]
+                cells = [normalise_text(c.text) for c in row.cells]
                 row_text = " ".join(cells)
 
                 # Assume STORY ID is in column 0

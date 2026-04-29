@@ -4,7 +4,7 @@ from typing import Iterable
 import pandas as pd
 import re
 from .status_utils import classify_status
-from .id_normaliser import normalise_id
+from .id_normaliser import normalise_id, normalise_text
 
 COL_STORY = "Story"
 COL_STATUS = "Status"
@@ -54,56 +54,75 @@ def _derive_exec_status(
     return "🟠 Mixed / Unknown"
 
 def _build_execution_detail(df_exec, story_to_tests, story_to_release):
+    """
+    Build detailed execution mapping per story + test.
+
+    Assumptions:
+    - df_exec is already normalised (IDs cleaned in parser)
+    - story/test identifiers should use normalise_id
+    - text fields (sheet/file) should use normalise_text
+    """
+
     rows = []
 
-    # Debug (optional – remove later)
+    # --------------------------------------------------
+    # Debug (safe to remove once stable)
+    # --------------------------------------------------
     print("STORY KEY SAMPLE:", list(story_to_tests.keys())[:3])
 
     # --------------------------------------------------
-    # Pre-group execution by Test ID
+    # Pre-group execution rows by Test ID
+    # (fast lookup instead of repeated filtering)
     # --------------------------------------------------
     exec_by_test = df_exec.groupby("Test ID")
 
     for story_key, planned_tests in story_to_tests.items():
 
         # --------------------------------------------------
-        # 🔑 FIX: unpack tuple (release, story)
+        # Unpack (release, story) safely
         # --------------------------------------------------
         if isinstance(story_key, (tuple, list)):
-            release = str(story_key[0])
-            story = str(story_key[1])
+            release = normalise_text(story_key[0])
+            story = normalise_id(story_key[1])
         else:
-            story = str(story_key)
+            story = normalise_id(story_key)
+
             release_val = story_to_release.get(story, "")
             if isinstance(release_val, (tuple, list)):
-                release = str(release_val[0])
+                release = normalise_text(release_val[0])
             else:
-                release = str(release_val)
+                release = normalise_text(release_val)
 
-        story_clean = story.strip()
-
+        # --------------------------------------------------
+        # Iterate planned tests for this story
+        # --------------------------------------------------
         for test_id in sorted(planned_tests):
 
-            test_clean = str(test_id).strip()
+            test_clean = normalise_id(test_id)
 
+            # --------------------------------------------------
+            # If test executed anywhere
+            # --------------------------------------------------
             if test_clean in exec_by_test.groups:
+
                 exec_rows = df_exec.loc[exec_by_test.groups[test_clean]]
 
                 for _, r in exec_rows.iterrows():
 
-                    exec_story = str(r["Story"]).strip()
+                    exec_story = normalise_id(r["Story"])
 
                     # --------------------------------------------------
-                    # ✅ CORRECT ALIGNMENT LOGIC
+                    # Alignment = executed under correct story?
                     # --------------------------------------------------
-                    aligned = "YES" if exec_story == story_clean else "NO"
+                    aligned = "YES" if exec_story == story else "NO"
 
                     rows.append({
                         "Release": release,
-                        "Story": story_clean,
+                        "Story": story,
                         "Test ID": test_clean,
-                        "Exec File": r["File"],
-                        "Sheet": r["Sheet"],
+                        "Exec File": normalise_text(r["File"]),
+                        "Sheet": normalise_text(r["Sheet"]),
+                        # Prefer explicit Test Result if present
                         "Status": r.get("Test Result", r.get("Status", "")),
                         "Aligned": aligned,
                         "Execution Location": exec_story,
@@ -115,7 +134,7 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
                 # --------------------------------------------------
                 rows.append({
                     "Release": release,
-                    "Story": story_clean,
+                    "Story": story,
                     "Test ID": test_clean,
                     "Exec File": "",
                     "Sheet": "",
@@ -127,43 +146,70 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
     return pd.DataFrame(rows)
 
 def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
+    """
+    Build story-level summary.
+
+    Assumptions:
+    - df_exec already normalised by parser
+    - IDs are clean (normalise_id applied upstream)
+    - only light text normalisation needed here
+    """
 
     df_exec = df_exec.copy()
 
-    df_exec.columns = [c.strip() for c in df_exec.columns]
-    df_exec["Evidence"] = df_exec["Evidence"].astype(str).str.strip().str.lower()
+    # --------------------------------------------------
+    # Evidence: normalise to lowercase for comparison only
+    # (do NOT strip again – parser already handled whitespace)
+    # --------------------------------------------------
+    df_exec["Evidence"] = df_exec["Evidence"].astype(str).str.lower()
 
+    # --------------------------------------------------
+    # Status classification (single source of truth)
+    # --------------------------------------------------
     df_exec["StatusClass"] = df_exec["Status"].apply(
         lambda s: classify_status(s, pass_values)
     )
 
     # --------------------------------------------------
-    # GLOBAL execution set
+    # GLOBAL execution set (IDs already normalised)
     # --------------------------------------------------
-    all_executed = set(
-        df_exec["Test ID"]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
+    all_executed = set(df_exec["Test ID"].dropna())
+
+    # --------------------------------------------------
+    # DUPLICATE DETECTION MAP (clean + no re-normalisation)
+    # --------------------------------------------------
+    test_to_stories = {}
+
+    for _, row in df_exec.iterrows():
+        test = row["Test ID"]
+        story_val = row["Story"]
+
+        if not test:
+            continue
+
+        # Ignore non-story placeholders
+        if story_val and story_val not in ["NEGATIVE", "None"]:
+            test_to_stories.setdefault(test, set()).add(story_val)
+
+    duplicate_tests = {
+        t: stories for t, stories in test_to_stories.items() if len(stories) > 1
+    }
 
     summary_rows = []
 
     for story, planned_tests in sorted(story_to_tests.items()):
 
+        # IDs should already be normalised, but enforce consistency at boundary
+        story = normalise_id(story)
+
         group = df_exec[df_exec["Story"] == story]
 
         planned = set(planned_tests)
 
-        executed_in_story = set(
-            group["Test ID"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-        )
+        executed_in_story = set(group["Test ID"].dropna())
 
         # --------------------------------------------------
-        # TRACEABILITY (CORRECT)
+        # TRACEABILITY
         # --------------------------------------------------
         genuine_missing = planned - all_executed
         misaligned = (planned - executed_in_story) & all_executed
@@ -176,12 +222,12 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
             traceability = "🟢 Tests present"
 
         # --------------------------------------------------
-        # EXECUTION COUNT (ACTUAL)
+        # EXECUTION COUNT
         # --------------------------------------------------
         total_exec = len(executed_in_story)
 
         # --------------------------------------------------
-        # STATUS COUNTS (story-local)
+        # STATUS COUNTS
         # --------------------------------------------------
         status_counts = group["StatusClass"].value_counts()
 
@@ -211,10 +257,25 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         )
 
         # --------------------------------------------------
-        # ISSUE BUILDING (CLEAN)
+        # ISSUE BUILDING
         # --------------------------------------------------
         issues = []
 
+        # Duplicate tests
+        duplicates_for_story = [
+            t for t, stories in duplicate_tests.items()
+            if story in stories
+        ]
+
+        if duplicates_for_story:
+            dup_strings = []
+            for t in sorted(duplicates_for_story):
+                stories = sorted(s for s in duplicate_tests[t] if s != story)
+                dup_strings.append(f"{t} (also in {', '.join(stories)})")
+
+            issues.append(f"Duplicate: {'; '.join(dup_strings)}")
+
+        # Traceability issues
         if genuine_missing:
             issues.append(f"Missing: {', '.join(sorted(genuine_missing))}")
 
@@ -225,6 +286,7 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         if extra:
             issues.append(f"Extra: {', '.join(sorted(extra))}")
 
+        # Execution issues
         failed_tests = group[group["StatusClass"] == "FAIL"]["Test ID"].tolist()
         if failed_tests:
             issues.append(f"Failed: {', '.join(sorted(set(failed_tests)))}")
@@ -240,9 +302,9 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
         issue_text = " | ".join(issues) if issues else ""
 
         # --------------------------------------------------
-        # RELEASE
+        # RELEASE (text field → normalise_text)
         # --------------------------------------------------
-        release = story_to_release.get(story, "UNKNOWN")
+        release = normalise_text(story_to_release.get(story, "UNKNOWN"))
 
         # --------------------------------------------------
         # APPEND
@@ -265,26 +327,33 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
     return pd.DataFrame(summary_rows).sort_values(["Release", "Story"])
 
 def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
+    """
+    Build traceability gap analysis per story.
+
+    Assumptions:
+    - df_exec already normalised by parser
+    - IDs are clean (normalise_id applied upstream)
+    """
+
     rows = []
 
     # --------------------------------------------------
-    # ALL executed tests across ALL stories
+    # GLOBAL execution set (already normalised IDs)
     # --------------------------------------------------
-    all_exec_tests = set(
-        df_exec["Test ID"]
-        .dropna()
-        .astype(str)
-    )
+    all_exec_tests = set(df_exec["Test ID"].dropna())
 
     for story, planned_tests in sorted(story_to_tests.items()):
 
+        # Enforce consistent ID format at boundary
+        story = normalise_id(story)
+
         group = df_exec[df_exec["Story"] == story]
 
-        exec_tests = set(group["Test ID"].dropna().astype(str))
+        exec_tests = set(group["Test ID"].dropna())
         planned_tests = set(planned_tests)
 
         # --------------------------------------------------
-        # MISALIGNED (executed, but not under this story)
+        # MISALIGNED (executed, but under different story)
         # --------------------------------------------------
         misaligned = (planned_tests - exec_tests) & all_exec_tests
 
@@ -299,29 +368,31 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
         story_missing = genuine_missing.union(misaligned)
 
         # --------------------------------------------------
-        # EXTRA (executed under story but not planned)
+        # EXTRA (executed under this story but not planned)
         # --------------------------------------------------
         extra = exec_tests - planned_tests
 
         # --------------------------------------------------
-        # EXECUTION (aligned + misaligned)
+        # EXECUTION VIEW
         # --------------------------------------------------
-        # --- DISPLAY (what actually ran here)
+        # What actually ran under this story
         execution_tests_display = exec_tests
 
-        # --- COVERAGE (used for counts)
+        # What contributes to coverage (aligned + misaligned)
         execution_tests_coverage = (planned_tests & exec_tests) | misaligned
 
-        # Try to get source info
+        # --------------------------------------------------
+        # SOURCE METADATA
+        # --------------------------------------------------
         if not group.empty:
-            source_file = group["File"].iloc[0]
-            source_sheet = group["Sheet"].iloc[0]
+            source_file = normalise_text(group["File"].iloc[0])
+            source_sheet = normalise_text(group["Sheet"].iloc[0])
         else:
             source_file = ""
             source_sheet = ""
 
         rows.append({
-            "Release": story_to_release.get(story, ""),
+            "Release": normalise_text(story_to_release.get(story, "")),
             "Story": story,
             "Source File": source_file,
             "Sheet": source_sheet,
@@ -331,7 +402,7 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
             "Misaligned Tests": ", ".join(sorted(misaligned)),
             "Extra Tests": ", ".join(sorted(extra)),
             "Planned Count": len(planned_tests),
-            "Execution Count": len(execution_tests_coverage),
+            "Coverage Count": len(execution_tests_coverage),
             "Missing Count": len(story_missing),
             "Extra Count": len(extra),
             "Has Gap": any([
@@ -351,74 +422,119 @@ def write_output(
     result,
     story_to_release=None,
     df_exec=None,
-    pass_values=None,   
+    pass_values=None,
     include_audit=True,
     debug_dir=None
 ):
-    
+    """
+    Write reconciliation outputs to Excel (+ optional CSV debug dumps).
+
+    Assumptions:
+    - Parsers already normalise IDs/text
+    - This layer should NOT re-clean IDs
+    """
+
+    # --------------------------------------------------
+    # Ensure df_exec exists (from parser or fallback)
+    # --------------------------------------------------
     if df_exec is None:
         exec_rows_unique = list(dict.fromkeys(exec_rows))
-        df_exec = pd.DataFrame(exec_rows_unique, columns=[
-                               'Sheet', 'Row', 'Story', 'Test ID', 'Status', 'File'])
+        df_exec = pd.DataFrame(
+            exec_rows_unique,
+            columns=["Sheet", "Row", "Story", "Test ID", "Status", "File"],
+        )
     else:
-        # Ensure consistent column naming for downstream logic
         df_exec = df_exec.copy()
-        df_exec.columns = [c.strip() for c in df_exec.columns]
 
-        
-    # Convert (release, story) → story_to_tests
+    # --------------------------------------------------
+    # Light column name normalisation ONLY (text-level)
+    # --------------------------------------------------
+    df_exec.columns = [normalise_text(c) for c in df_exec.columns]
+
+    # --------------------------------------------------
+    # Flatten (release, story) → story_to_tests
+    # --------------------------------------------------
     story_to_tests_flat = {}
 
     for (release, story), tests in story_to_tests.items():
+        story = normalise_id(story)
         story_to_tests_flat.setdefault(story, set()).update(tests)
 
+    # --------------------------------------------------
+    # Build outputs
+    # --------------------------------------------------
     df_summary = _build_summary(
         story_to_tests_flat,
         df_exec,
         pass_values,
-        story_to_release   
+        story_to_release,
     )
 
     df_gaps = _build_traceability_gaps(
         df_exec,
         story_to_tests_flat,
-        story_to_release   #
+        story_to_release,
     )
 
-    df_missing=_df_from_set('MissingTest', result.missing_tests)
-    df_extra=_df_from_set('ExtraTest', result.extra_tests)
+    df_missing = _df_from_set("MissingTest", result.missing_tests)
+    df_extra = _df_from_set("ExtraTest", result.extra_tests)
 
+    # --------------------------------------------------
+    # Story → Test map
+    # --------------------------------------------------
     st_rows = [
-    (s, t)
-    for s, tests in sorted(story_to_tests_flat.items())
-    for t in sorted(tests)
+        (s, t)
+        for s, tests in sorted(story_to_tests_flat.items())
+        for t in sorted(tests)
     ]
-    
-    df_story_map=pd.DataFrame(st_rows, columns=['Story','Test'])
-    df_plan_raw=pd.DataFrame(plan_raw_rows, columns=['StoryCell','RowText','TestCell'])
-    
-    output_path=Path(output_path)
+
+    df_story_map = pd.DataFrame(st_rows, columns=["Story", "Test"])
+
+    # --------------------------------------------------
+    # Raw plan (no re-normalisation here)
+    # --------------------------------------------------
+    df_plan_raw = pd.DataFrame(
+        plan_raw_rows,
+        columns=["StoryCell", "RowText", "TestCell"],
+    )
+
+    # --------------------------------------------------
+    # Ensure output path exists
+    # --------------------------------------------------
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with pd.ExcelWriter(output_path, engine='openpyxl') as xw:
-        df_summary.to_excel(xw, sheet_name='Summary', index=False)
+
+    # --------------------------------------------------
+    # Write Excel
+    # --------------------------------------------------
+    with pd.ExcelWriter(output_path, engine="openpyxl") as xw:
+        df_summary.to_excel(xw, sheet_name="Summary", index=False)
         df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
-        df_missing.to_excel(xw, sheet_name='Missing', index=False)
-        df_extra.to_excel(xw, sheet_name='Extra', index=False)
-        df_story_map.to_excel(xw, sheet_name='Story_To_Test_Map', index=False)
-        df_exec.to_excel(xw, sheet_name='Execution_Attachments', index=False)
-       
-        df_detail = _build_execution_detail(df_exec, story_to_tests, story_to_release)
+        df_missing.to_excel(xw, sheet_name="Missing", index=False)
+        df_extra.to_excel(xw, sheet_name="Extra", index=False)
+        df_story_map.to_excel(xw, sheet_name="Story_To_Test_Map", index=False)
+        df_exec.to_excel(xw, sheet_name="Execution_Attachments", index=False)
+
+        df_detail = _build_execution_detail(
+            df_exec,
+            story_to_tests,
+            story_to_release,
+        )
         df_detail.to_excel(xw, sheet_name="Execution_Detail", index=False)
-        
+
         if include_audit:
-            df_plan_raw.to_excel(xw, sheet_name='Plan_Raw', index=False)
-            df_exec.to_excel(xw, sheet_name='Exec_Raw', index=False)
-    
+            df_plan_raw.to_excel(xw, sheet_name="Plan_Raw", index=False)
+            df_exec.to_excel(xw, sheet_name="Exec_Raw", index=False)
+
+    # --------------------------------------------------
+    # Optional debug outputs (CSV)
+    # --------------------------------------------------
     if debug_dir:
-        debug_dir=Path(debug_dir); debug_dir.mkdir(parents=True, exist_ok=True)
-        df_summary.to_csv(debug_dir/'summary.csv', index=False)
-        df_story_map.to_csv(debug_dir/'plan_extracted.csv', index=False)
-        df_exec.to_csv(debug_dir/'exec_extracted.csv', index=False)
-        df_missing.to_csv(debug_dir/'missing_tests.csv', index=False)
-        df_extra.to_csv(debug_dir/'extra_tests.csv', index=False)
+        debug_dir = Path(debug_dir)
+        debug_dir.mkdir(parents=True, exist_ok=True)
+
+        df_summary.to_csv(debug_dir / "summary.csv", index=False)
+        df_story_map.to_csv(debug_dir / "plan_extracted.csv", index=False)
+        df_exec.to_csv(debug_dir / "exec_extracted.csv", index=False)
+        df_missing.to_csv(debug_dir / "missing_tests.csv", index=False)
+        df_extra.to_csv(debug_dir / "extra_tests.csv", index=False)

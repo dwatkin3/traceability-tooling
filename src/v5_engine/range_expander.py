@@ -15,7 +15,7 @@ def expand_ranges(tokens: List[str]) -> Set[str]:
     results = set()
 
     for tok in tokens:
-        tok = tok.strip().upper()
+        tok = normalise_id(tok)
 
         # --------------------------------------------------
         # MATCH RANGE (e.g. ME03-ME12)
