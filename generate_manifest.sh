@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Usage check
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <release-id>   (e.g. 2026.02)"
+  echo "Usage: $0 <release-id>   (e.g. 2026.04)"
   exit 1
 fi
 
@@ -29,33 +30,30 @@ fi
 PLAN_FILE_REL="plan/$(basename "$PLAN_FILE_ABS")"
 
 # ---- EXECUTION (.xlsx) ----
-EXEC_FILES_ABS=()
-while IFS= read -r -d '' file; do
-  EXEC_FILES_ABS+=("$file")
-done < <(find "$EXEC_DIR" -maxdepth 1 -type f -name '*.xlsx' -print0)
+EXEC_JSON=""
 
-if [[ ${#EXEC_FILES_ABS[@]} -eq 0 ]]; then
+for f in "$EXEC_DIR"/*.xlsx; do
+  [ -e "$f" ] || continue
+  rel="execution/$(basename "$f")"
+
+  if [ -z "$EXEC_JSON" ]; then
+    EXEC_JSON="    \"$rel\""
+  else
+    EXEC_JSON="$EXEC_JSON,\n    \"$rel\""
+  fi
+done
+
+if [ -z "$EXEC_JSON" ]; then
   echo "ERROR: No .xlsx execution files found in $EXEC_DIR"
   exit 1
 fi
-
-# Build JSON array of execution files
-EXEC_JSON_LINES=()
-for f in "${EXEC_FILES_ABS[@]}"; do
-  rel="execution/$(basename "$f")"
-  EXEC_JSON_LINES+=("    "$rel"")
-done
-
-# Join with commas
-EXEC_JSON_JOINED="$(printf ",\n%s" "${EXEC_JSON_LINES[@]}")"
-EXEC_JSON_JOINED="${EXEC_JSON_JOINED:2}"
 
 # ---- Write manifest.json ----
 cat > "$MANIFEST" <<EOF
 {
   "plan_file": "$PLAN_FILE_REL",
   "execution_files": [
-$EXEC_JSON_JOINED
+$EXEC_JSON
   ]
 }
 EOF
