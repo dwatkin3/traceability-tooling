@@ -6,20 +6,8 @@ import re
 from .status_utils import classify_status
 from .id_normaliser import normalise_id, normalise_text
 
-COL_STORY = "Story"
-COL_STATUS = "Status"
-COL_EVIDENCE = "Evidence"
-COL_TEST = "Test ID"
-
 def _df_from_set(name: str, values: Iterable[str]) -> pd.DataFrame:
     return pd.DataFrame({name: sorted(values)})
-
-def _join(values: Iterable[str]) -> str:
-    return ",".join(sorted(values)) if values else ""
-
-def _family(t: str) -> str:
-    m = re.match(r"^([A-Z]+)", t)
-    return m.group(1) if m else ''
 
 def _derive_exec_status(
     total_exec,
@@ -64,11 +52,6 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
     """
 
     rows = []
-
-    # --------------------------------------------------
-    # Debug (safe to remove once stable)
-    # --------------------------------------------------
-    print("STORY KEY SAMPLE:", list(story_to_tests.keys())[:3])
 
     # --------------------------------------------------
     # Pre-group execution rows by Test ID
@@ -155,6 +138,11 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
     - only light text normalisation needed here
     """
 
+    required_cols = {"Test ID", "Story", "Status", "Evidence"}
+    missing = required_cols - set(df_exec.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
     df_exec = df_exec.copy()
 
     # --------------------------------------------------
@@ -180,15 +168,12 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
     # --------------------------------------------------
     test_to_stories = {}
 
-    for _, row in df_exec.iterrows():
-        test = row["Test ID"]
-        story_val = row["Story"]
-
+    for test, story_val in zip(df_exec["Test ID"], df_exec["Story"]):
         if not test:
             continue
 
-        # Ignore non-story placeholders
-        if story_val and story_val not in ["NEGATIVE", "None"]:
+        # Only count real stories (ignore NEGATIVE, N/A, etc.)
+        if isinstance(story_val, str) and story_val.startswith("STRY"):
             test_to_stories.setdefault(test, set()).add(story_val)
 
     duplicate_tests = {
@@ -334,6 +319,10 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
     - df_exec already normalised by parser
     - IDs are clean (normalise_id applied upstream)
     """
+    required_cols = {"Test ID", "Story", "Status", "Evidence"}
+    missing = required_cols - set(df_exec.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
 
     rows = []
 
