@@ -19,7 +19,7 @@ MANIFEST="$RELEASE_DIR/manifest.json"
 [[ -d "$EXEC_DIR"   ]] || { echo "ERROR: Missing $EXEC_DIR";   exit 1; }
 
 # ---- PLAN (.docx) ----
-# Choose the newest .docx; change 'tail -n 1' to 'head -n 1' if you prefer "oldest" or "first"
+# ----------------------
 # ---- PLAN (.docx) ----
 PLAN_FILE_ABS="$(ls -t "$PLAN_DIR"/*.docx 2>/dev/null | head -n 1)"
 
