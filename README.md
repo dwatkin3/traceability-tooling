@@ -103,60 +103,161 @@ Example:
 ```
 
 ------------------------------------------------------------------------
+## Outputs Explained (How to Read the Results)
 
-## Outputs Explained
+The Excel output is the primary deliverable of the Traceability
+Reconciler.\
+It is designed to support both quick assessment and detailed audit.
 
-The tool produces a multi-sheet Excel workbook.
-
-### 1. Summary
-
-Purpose: - High-level story status overview
-
-Contains: - Traceability status (missing / misaligned) - Execution
-status (pass/fail/evidence) - Counts of planned vs executed tests
-
-Interpretation: - 🔴 Tests missing → coverage gap exists 
-- 🟡 Tests present (not linked) → executed elsewhere 
-- 🟢 Tests present → fully aligned
+Each sheet serves a distinct purpose and should be read in combination.
 
 ------------------------------------------------------------------------
 
-### 2. Traceability Gaps
+### 1. Summary Sheet (Primary View)
 
-Purpose: - Detailed breakdown of coverage issues
+**Purpose:**
+Provides a high-level, story-by-story view of coverage and execution
+quality.
 
-Contains: - Missing tests 
-- Misaligned tests 
-- Extra tests 
-- Coverage counts
+Each row answers three key questions:
 
-Interpretation: - Focus here for root cause analysis 
-- Misaligned tests indicate execution errors 
-- Missing tests indicate coverage gaps
+#### 1. Coverage -- *Did we test what we planned?*
+
+Column: **Traceability**
+
+-   🟢 Tests present
+    → All planned tests were executed under the correct story
+
+-   🟡 Tests present (not linked)
+    → Tests were executed, but some are linked to the wrong story
+
+-   🔴 Tests missing
+    → One or more planned tests were not executed anywhere
 
 ------------------------------------------------------------------------
 
-### 3. Execution Detail
+#### 2. Execution Quality -- *Did the tests pass correctly?*
 
-Purpose: - Test-level audit trail
+Column: **Exec Status**
 
-Contains: - Each planned test 
-- Where it was executed 
-- Alignment status 
-- Execution result
+-   🟢 Passed with evidence
+    → All executed tests passed and have supporting evidence
 
-Interpretation: - "Aligned = NO" → execution occurred under wrong story 
-- "NOT EXECUTED" → test missing entirely
+-   🔴 Failed tests present
+    → At least one test failed
+
+-   🟠 Mixed / Unknown
+    → Execution is incomplete or inconsistent
+
+------------------------------------------------------------------------
+
+#### 3. Root Cause -- *What exactly is wrong?*
+
+Column: **Issue**
+
+This column provides the detailed breakdown:
+
+-   **Missing** → Planned but never executed
+-   **Misaligned** → Executed under the wrong story
+-   **Extra** → Executed but not planned
+-   **Duplicate** → Executed under multiple stories
+-   **Missing evidence** → Passed but lacks supporting evidence
+
+------------------------------------------------------------------------
+
+#### How to interpret a row
+
+Read across all three columns together:
+
+-   Traceability = coverage correctness
+-   Exec Status = execution outcome
+-   Issue = detailed explanation
+
+Example:
+
+-   🟡 Traceability + 🟢 Exec Status
+    → Tests passed, but traceability is incorrect
+
+-   🔴 Traceability + 🟢 Exec Status
+    → Execution looks good, but coverage is incomplete
+
+-   🔴 Traceability + 🔴 Exec Status
+    → Both coverage and execution are problematic
+
+------------------------------------------------------------------------
+
+### 2. Traceability Gaps Sheet (Diagnostic View)
+
+**Purpose:**
+Provides detailed analysis of where coverage breaks down.
+
+Contains:
+
+-   Missing Tests
+-   Misaligned Tests
+-   Extra Tests
+-   Coverage Counts
+
+**How to use:**
+
+-   Use this sheet to investigate *why* a Summary row is not green
+-   Misaligned tests indicate execution under the wrong story
+-   Missing tests indicate true coverage gaps
+-   Extra tests indicate potential scope drift
+
+------------------------------------------------------------------------
+
+### 3. Execution Detail Sheet (Audit View)
+
+**Purpose:**
+Provides a test-by-test audit trail.
+
+Each row shows:
+
+-   Planned test
+-   Where it was executed
+-   Whether it is aligned
+-   Execution status
+
+**Key fields:**
+
+-   **Aligned = YES** → Executed under correct story
+-   **Aligned = NO** → Executed under different story
+-   **Status = NOT EXECUTED** → No execution found anywhere
+
+**How to use:**
+
+-   Validate specific discrepancies
+-   Trace issues back to execution data
+-   Support audit or review discussions
 
 ------------------------------------------------------------------------
 
 ### 4. Supporting Sheets
 
--   Story_To_Test_Map → plan structure 
--   Execution_Attachments → raw execution data 
--   Plan_Raw / Exec_Raw → audit extraction
+These provide traceability back to source data:
 
-These support traceability back to source data.
+-   **Story_To_Test_Map** → Planned mapping of stories to tests
+-   **Execution_Attachments** → Normalised execution data
+-   **Plan_Raw / Exec_Raw** → Raw extracted inputs
+
+**How to use:**
+
+-   Verify parser behaviour
+-   Troubleshoot unexpected results
+-   Provide audit transparency
+
+------------------------------------------------------------------------
+
+## Key Interpretation Rule
+
+The Summary sheet provides the headline view, but:
+
+> All issues shown there can be fully explained using the Traceability
+> Gaps and Execution Detail sheets.
+
+These sheets should always be used together for complete understanding.
+
 
 ------------------------------------------------------------------------
 
