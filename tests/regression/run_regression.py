@@ -11,17 +11,10 @@ RELEASE = "2026.04"
 
 def run_engine():
     print("Running reconciliation...")
-    result = subprocess.run(
-        ["python", "run_reconcile.py", RELEASE],
-        capture_output=True,
-        text=True
-    )
-
-    if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr)
-        raise RuntimeError("Engine run failed")
-
+    subprocess.run(
+		["bash", "run_release.sh", RELEASE],
+		check=True
+		)
 
 def load_sheet(path, sheet):
     return pd.read_excel(path, sheet_name=sheet).fillna("")
