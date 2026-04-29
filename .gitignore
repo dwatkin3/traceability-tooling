@@ -34,3 +34,4 @@ debug*.txt
 # Generated outputs / evidence
 releases/**/evidence/
 
+.DS_Store
