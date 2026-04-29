@@ -43,11 +43,14 @@ reconcile_*.xlsx
 JobsToDo.md
 
 # -----------------------------
-# Release data control
+# Allow only the sample release
 # -----------------------------
 releases/*
 !releases/2026.04/
 !releases/2026.04/**
+
+# But STILL ignore junk inside it
+releases/2026.04/**/.DS_Store
 
 # -----------------------------
 # IDE / editor
