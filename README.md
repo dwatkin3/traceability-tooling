@@ -330,38 +330,75 @@ These sheets should always be used together for complete understanding.
 
 ------------------------------------------------------------------------
 
-## Regression Testing 
+## Regression Testing
 
 The engine includes automated regression validation to guarantee
 deterministic behaviour.
 
-### Run regression tests:
+---
 
-``` bash
+### 🔧 Setup (required before running regression)
+
+The regression runner compares the latest output against a baseline file.
+
+Create the required folder and copy the latest generated output:
+
+mkdir -p tests/regression/output
+
+cp outputs/2026.04/Traceability_Reconciliation_2026.04.xlsx \
+   tests/regression/output/Traceability_Reconciliation_test.xlsx
+
+This step ensures the regression framework has a baseline to compare against.
+
+---
+
+### ▶️ Run regression tests
+
 python tests/regression/run_regression.py
-```
 
-### What this does:
+---
 
-1.  Runs the reconciliation engine 
-2.  Generates a fresh output file 
-3.  Compares it to a known baseline 
-4.  Fails if any differences are detected
+### ⚙️ What this does
 
-### Expected output:
+1. Executes the reconciliation engine  
+2. Generates a fresh output file  
+3. Compares it against the baseline  
+4. Fails if any differences are detected  
 
-    ✅ Summary matches
-    ✅ Traceability Gaps matches
-    ✅ Execution_Detail matches
+---
 
-    ✅ REGRESSION PASSED
+### ✅ Expected output
 
-### If it fails:
+Running reconciliation...
 
--   A mismatch will be displayed 
--   Investigate differences before committing 
--   Only update baseline if change is intentional
+Comparing sheet: Summary
+Summary matches
 
+Comparing sheet: Traceability Gaps
+Traceability Gaps matches
+
+Comparing sheet: Execution_Detail
+Execution_Detail matches
+
+REGRESSION PASSED
+
+---
+
+### ❌ If it fails
+
+- Differences will be reported in the console  
+- Investigate before committing changes  
+- Only update the baseline file if the change is intentional  
+
+---
+
+### 🧠 Notes
+
+- The baseline file is:
+  tests/regression/output/Traceability_Reconciliation_test.xlsx
+- It represents the expected output for the engine  
+- Update it only when behaviour changes are deliberate  
+- The mkdir step is safe to run repeatedly  
 
 ------------------------------------------------------------------------
 
