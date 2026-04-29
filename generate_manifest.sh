@@ -26,7 +26,6 @@ if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
   exit 1
 fi
 
-# Manifest must store path relative to release dir
 PLAN_FILE_REL="plan/$(basename "$PLAN_FILE_ABS")"
 
 # ---- EXECUTION (.xlsx) ----
@@ -44,18 +43,17 @@ fi
 EXEC_JSON_LINES=()
 for f in "${EXEC_FILES_ABS[@]}"; do
   rel="execution/$(basename "$f")"
-  rel_escaped=${rel//"/\"}
-  EXEC_JSON_LINES+=("    \"$rel_escaped\"")
+  EXEC_JSON_LINES+=("    "$rel"")
 done
 
-# Join with commas and newlines
+# Join with commas
 EXEC_JSON_JOINED="$(printf ",\n%s" "${EXEC_JSON_LINES[@]}")"
 EXEC_JSON_JOINED="${EXEC_JSON_JOINED:2}"
 
 # ---- Write manifest.json ----
 cat > "$MANIFEST" <<EOF
 {
-  "plan_file": "$(printf %s "$PLAN_FILE_REL" | sed 's/"/\\\"/g')",
+  "plan_file": "$PLAN_FILE_REL",
   "execution_files": [
 $EXEC_JSON_JOINED
   ]
