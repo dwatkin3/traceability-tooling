@@ -22,18 +22,18 @@ supplier handover).
 
 In real delivery environments, inconsistencies frequently occur:
 
--   Tests planned but never executed\
--   Tests executed under the wrong story\
--   Duplicate execution across multiple stories\
+-   Tests planned but never executed 
+-   Tests executed under the wrong story 
+-   Duplicate execution across multiple stories 
 -   Lack of evidence for passed tests
 
 Manual reconciliation is slow, subjective, and error-prone.
 
 This tool provides:
 
--   Objective reconciliation logic\
--   Repeatable and deterministic outputs\
--   Clear classification of issues\
+-   Objective reconciliation logic 
+-   Repeatable and deterministic outputs 
+-   Clear classification of issues 
 -   A consistent audit trail
 
 ------------------------------------------------------------------------
@@ -86,8 +86,8 @@ Each release folder should contain:
 
 With:
 
--   One test plan file\
--   One or more execution files\
+-   One test plan file 
+-   One or more execution files 
 -   A manifest.json describing inputs
 
 Example:
@@ -115,8 +115,8 @@ Purpose: - High-level story status overview
 Contains: - Traceability status (missing / misaligned) - Execution
 status (pass/fail/evidence) - Counts of planned vs executed tests
 
-Interpretation: - 🔴 Tests missing → coverage gap exists\
-- 🟡 Tests present (not linked) → executed elsewhere\
+Interpretation: - 🔴 Tests missing → coverage gap exists 
+- 🟡 Tests present (not linked) → executed elsewhere 
 - 🟢 Tests present → fully aligned
 
 ------------------------------------------------------------------------
@@ -125,13 +125,13 @@ Interpretation: - 🔴 Tests missing → coverage gap exists\
 
 Purpose: - Detailed breakdown of coverage issues
 
-Contains: - Missing tests\
-- Misaligned tests\
-- Extra tests\
+Contains: - Missing tests 
+- Misaligned tests 
+- Extra tests 
 - Coverage counts
 
-Interpretation: - Focus here for root cause analysis\
-- Misaligned tests indicate execution errors\
+Interpretation: - Focus here for root cause analysis 
+- Misaligned tests indicate execution errors 
 - Missing tests indicate coverage gaps
 
 ------------------------------------------------------------------------
@@ -140,20 +140,20 @@ Interpretation: - Focus here for root cause analysis\
 
 Purpose: - Test-level audit trail
 
-Contains: - Each planned test\
-- Where it was executed\
-- Alignment status\
+Contains: - Each planned test 
+- Where it was executed 
+- Alignment status 
 - Execution result
 
-Interpretation: - "Aligned = NO" → execution occurred under wrong story\
+Interpretation: - "Aligned = NO" → execution occurred under wrong story 
 - "NOT EXECUTED" → test missing entirely
 
 ------------------------------------------------------------------------
 
 ### 4. Supporting Sheets
 
--   Story_To_Test_Map → plan structure\
--   Execution_Attachments → raw execution data\
+-   Story_To_Test_Map → plan structure 
+-   Execution_Attachments → raw execution data 
 -   Plan_Raw / Exec_Raw → audit extraction
 
 These support traceability back to source data.
@@ -173,9 +173,9 @@ python tests/regression/run_regression.py
 
 ### What this does:
 
-1.  Runs the reconciliation engine\
-2.  Generates a fresh output file\
-3.  Compares it to a known baseline\
+1.  Runs the reconciliation engine 
+2.  Generates a fresh output file 
+3.  Compares it to a known baseline 
 4.  Fails if any differences are detected
 
 ### Expected output:
@@ -188,8 +188,8 @@ python tests/regression/run_regression.py
 
 ### If it fails:
 
--   A mismatch will be displayed\
--   Investigate differences before committing\
+-   A mismatch will be displayed 
+-   Investigate differences before committing 
 -   Only update baseline if change is intentional
 
 
@@ -197,10 +197,10 @@ python tests/regression/run_regression.py
 
 ## Design Principles
 
--   Normalise once at ingestion\
--   Deterministic outputs\
--   Separation of concerns (parser → engine → writer)\
--   Data-driven behaviour\
+-   Normalise once at ingestion 
+-   Deterministic outputs 
+-   Separation of concerns (parser → engine → writer) 
+-   Data-driven behaviour 
 -   Audit-first design
 
 ------------------------------------------------------------------------
@@ -209,35 +209,35 @@ python tests/regression/run_regression.py
 
 ### Assumptions
 
--   Input files follow expected formats\
--   Story identifiers follow pattern (e.g. STRYxxxx)\
--   Test IDs are unique identifiers\
+-   Input files follow expected formats 
+-   Story identifiers follow pattern (e.g. STRYxxxx) 
+-   Test IDs are unique identifiers 
 -   Execution files contain consistent status values
 
 ------------------------------------------------------------------------
 
 ### Known Behaviours
 
--   Misaligned tests are treated as coverage gaps\
--   Duplicate tests are reported but not automatically resolved\
--   Evidence is treated as a binary flag (yes/no)\
+-   Misaligned tests are treated as coverage gaps 
+-   Duplicate tests are reported but not automatically resolved 
+-   Evidence is treated as a binary flag (yes/no) 
 -   Output ordering may differ but data remains consistent
 
 ------------------------------------------------------------------------
 
 ## Limitations
 
--   Relies on consistent naming conventions\
--   Does not infer missing relationships automatically\
+-   Relies on consistent naming conventions 
+-   Does not infer missing relationships automatically 
 -   Does not validate business logic correctness of tests
 
 ------------------------------------------------------------------------
 
 ## Maintainer Guidance
 
--   Always run regression tests before committing\
--   Do not introduce implicit data transformations\
--   Prefer configuration over logic changes\
+-   Always run regression tests before committing 
+-   Do not introduce implicit data transformations 
+-   Prefer configuration over logic changes 
 -   Treat output structure as contract
 
 ------------------------------------------------------------------------
@@ -246,9 +246,9 @@ python tests/regression/run_regression.py
 
 This tool is designed to be:
 
--   Deterministic\
--   Transparent\
--   Auditable\
+-   Deterministic 
+-   Transparent 
+-   Auditable 
 -   Safe to evolve
 
 It should be treated as a controlled component within the delivery
