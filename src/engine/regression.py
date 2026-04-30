@@ -25,12 +25,12 @@ def compare_sheets(sheet):
     df_base = df_base.sort_values(common_cols).reset_index(drop=True)
     df_new = df_new.sort_values(common_cols).reset_index(drop=True)
 
-	print(f"\n--- {sheet} ---")
-	if not df_base.equals(df_new):
-    	diff = df_base.compare(df_new)
-    	print(f"❌ {sheet} mismatch: {len(diff)} differing rows")
-    	print(diff.head(20))
-    	return False
+    print(f"\n--- {sheet} ---")
+    if not df_base.equals(df_new):
+        diff = df_base.compare(df_new)
+        print(f"❌ {sheet} mismatch: {len(diff)} differing rows")
+        print(diff.head(20))
+        return False
 
     print(f"✅ {sheet} matches")
     return True
