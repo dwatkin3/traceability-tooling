@@ -259,7 +259,6 @@ if __name__ == "__main__":
     root = Path(__file__).resolve().parents[2]
     rel_dir = root / "releases" / args.release
 
-    print(f"Running release: {args.release}")
     print(f"Manifest: {rel_dir / 'manifest.json'}")
 
     result = run_release(
