@@ -25,17 +25,42 @@ def compare_sheets(sheet):
     df_base = df_base.sort_values(common_cols).reset_index(drop=True)
     df_new = df_new.sort_values(common_cols).reset_index(drop=True)
 
+    # TEMP: force a diff for testing
+    df_new.iloc[0, 0] = "CI_TEST_DIFF"
 
+    # ----------------------------------------------------------
+    # Compare sheets
+    # ----------------------------------------------------------
     print(f"\n--- {sheet} ---")
+
     if not df_base.equals(df_new):
         diff = df_base.compare(df_new)
-        print(f"❌ {sheet} mismatch: {len(diff)} differing rows")
+
+        print(f"❌ {sheet} mismatch")
+        print(f"Rows changed: {len(diff)}")
+
+        # Show preview in console
+        print("\nFirst differences:")
         print(diff.head(20))
-        return False
+
+        # ------------------------------------------------------
+        # Write diff to file (NEW)
+        # ------------------------------------------------------
+        from pathlib import Path
+
+        output_dir = Path("outputs/diff")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        safe_sheet = sheet.replace(" ", "_")
+        diff_file = output_dir / f"diff_{safe_sheet}.csv"
+
+        diff.to_csv(diff_file)
+
+        print(f"\nDiff written to: {diff_file}")
+
+        raise SystemExit(1)
 
     print(f"✅ {sheet} matches")
-    return True
-
 
 def main():
     print("Running regression...")
