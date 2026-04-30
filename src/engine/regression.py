@@ -25,6 +25,7 @@ def compare_sheets(sheet):
     df_base = df_base.sort_values(common_cols).reset_index(drop=True)
     df_new = df_new.sort_values(common_cols).reset_index(drop=True)
 
+
     print(f"\n--- {sheet} ---")
     if not df_base.equals(df_new):
         diff = df_base.compare(df_new)
