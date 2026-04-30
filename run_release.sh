@@ -16,7 +16,7 @@ set -euo pipefail
 #   - Activates the local .venv
 #   - Confirms which Python interpreter is being used
 #   - Executes the pipeline via module entrypoint:
-#       src.v5_engine.run_release
+#       src.engine.run_release
 #
 # Usage:
 #   ./run_release.sh <release-id>
@@ -61,4 +61,4 @@ source "$ROOT_DIR/.venv/bin/activate"
 echo "Using Python: $(which python)"
 echo "Running release: $RELEASE"
 
-PYTHONPATH="$ROOT_DIR" python3 -m src.v5_engine.run_release --release "$RELEASE"
+PYTHONPATH="$ROOT_DIR" python3 -m src.engine.run_release --release "$RELEASE"
