@@ -1,0 +1,81 @@
+name: Validate Traceability Pipeline
+
+# ----------------------------------------------------------
+# Triggers
+# ----------------------------------------------------------
+# Run on:
+# - every push to main
+# - every pull request targeting main
+# ----------------------------------------------------------
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    # ------------------------------------------------------
+    # Execution environment
+    # ------------------------------------------------------
+    # Use Ubuntu runner provided by GitHub
+    # ------------------------------------------------------
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------------------------------
+      # Step 1: Checkout repository
+      # ----------------------------------------------------
+      # Pulls your repo code into the runner
+      # ----------------------------------------------------
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------
+      # Step 2: Set up Python
+      # ----------------------------------------------------
+      # Matches your local development version
+      # ----------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # ----------------------------------------------------
+      # Step 3: Ensure scripts are executable
+      # ----------------------------------------------------
+      # Required because GitHub runners don’t preserve +x
+      # ----------------------------------------------------
+      - name: Make scripts executable
+        run: chmod +x *.sh
+
+      # ----------------------------------------------------
+      # Step 4: Create virtual environment & install deps
+      # ----------------------------------------------------
+      # Mirrors your local bootstrap environment
+      # ----------------------------------------------------
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install pandas openpyxl python-docx
+
+      # ----------------------------------------------------
+      # Step 5: Run full validation pipeline
+      # ----------------------------------------------------
+      # This calls:
+      #   bootstrap.sh
+      #     → validate.sh
+      #       → run_release.sh (engine)
+      #       → regression.py (compare)
+      #
+      # IMPORTANT:
+      # - Uses existing baseline
+      # - Does NOT update baseline in CI
+      # - Fails build if regression fails
+      # ----------------------------------------------------
+      - name: Run validation
+        run: |
+          source .venv/bin/activate
+          ./bootstrap.sh 2026.04
