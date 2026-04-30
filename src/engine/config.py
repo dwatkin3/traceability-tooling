@@ -1,10 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Set
 
 # Output root (matches your desired structure)
 OUTPUT_ROOT = "outputs/releases"
-DEFAULT_OUTPUT_NAME = "Traceability_Reconciliation.xlsx"
+DEFAULT_OUTPUT_NAME = None
 
 @dataclass(frozen=True)
 class EngineConfig:
