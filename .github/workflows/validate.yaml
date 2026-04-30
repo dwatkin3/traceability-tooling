@@ -54,12 +54,20 @@ jobs:
       # ----------------------------------------------------
       # Mirrors your local bootstrap environment
       # ----------------------------------------------------
-      - name: Create virtual environment
+        name: Cache pip
+        uses: actions/cache@v4
+        with:
+            path: ~/.cache/pip
+            key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+            restore-keys: |
+                ${{ runner.os }}-pip-
+
+        name: Install dependencies
         run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install --upgrade pip
-          pip install pandas openpyxl python-docx
+            python -m venv .venv
+            source .venv/bin/activate
+            pip install --upgrade pip
+            pip install pandas openpyxl python-docx
 
       # ----------------------------------------------------
       # Step 5: Run full validation pipeline
