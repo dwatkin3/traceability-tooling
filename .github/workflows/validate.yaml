@@ -50,27 +50,33 @@ jobs:
         run: chmod +x *.sh
 
       # ----------------------------------------------------
-      # Step 4: Create virtual environment & install deps
+      # Step 4: Cache pip dependencies
       # ----------------------------------------------------
-      # Mirrors your local bootstrap environment
+      # Speeds up installs between runs
+      # Safe even without requirements.txt
       # ----------------------------------------------------
-        name: Cache pip
+      - name: Cache pip
         uses: actions/cache@v4
         with:
-            path: ~/.cache/pip
-            key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-            restore-keys: |
-                ${{ runner.os }}-pip-
-
-        name: Install dependencies
-        run: |
-            python -m venv .venv
-            source .venv/bin/activate
-            pip install --upgrade pip
-            pip install pandas openpyxl python-docx
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip
+          restore-keys: |
+            ${{ runner.os }}-pip
 
       # ----------------------------------------------------
-      # Step 5: Run full validation pipeline
+      # Step 5: Create virtual environment & install deps
+      # ----------------------------------------------------
+      # Mirrors your local setup
+      # ----------------------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install pandas openpyxl python-docx
+
+      # ----------------------------------------------------
+      # Step 6: Run full validation pipeline
       # ----------------------------------------------------
       # This calls:
       #   bootstrap.sh
