@@ -1,3 +1,4 @@
+![CI](https://github.com/dwatkin3/traceability-tooling/actions/workflows/validate.yml/badge.svg)
 # Traceability Reconciler (v5)
 
 ## Overview
