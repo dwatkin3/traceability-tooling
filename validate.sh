@@ -62,7 +62,6 @@ if [ "$UPDATE_BASELINE" = true ]; then
      "$BASELINE_DIR/$BASELINE_FILE"
 fi
 
-echo "Running regression..."
 python "$ROOT_DIR/src/engine/regression.py"
 
 echo "========================================"
