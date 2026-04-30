@@ -36,14 +36,8 @@ def compare_sheets(sheet):
         print(f"❌ {sheet} mismatch")
         print(f"Rows changed: {len(diff)}")
 
-        # Show preview in console
         print("\nFirst differences:")
         print(diff.head(20))
-
-
-        # ------------------------------------------------------
-        # Write diff to Excel 
-        # ------------------------------------------------------
 
         output_dir = Path("outputs/diff")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -51,13 +45,15 @@ def compare_sheets(sheet):
         safe_sheet = sheet.replace(" ", "_")
         diff_file = output_dir / f"diff_{safe_sheet}.xlsx"
 
-        # Write to Excel
         with pd.ExcelWriter(diff_file, engine="openpyxl") as writer:
             diff.to_excel(writer, sheet_name="Diff")
 
         print(f"\nDiff written to: {diff_file}")
 
+        return False   # 👈 IMPORTANT
+
     print(f"✅ {sheet} matches")
+    return True        # 👈 IMPORTANT
 
 def main():
     print("Running regression...")
