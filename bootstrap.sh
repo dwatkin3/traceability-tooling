@@ -18,7 +18,7 @@ if [ $# -lt 1 ]; then
 fi
 
 RELEASE="$1"
-ARCHIVE_FLAG="${2:-}"
+shift
 
 echo "========================================"
 echo "BOOTSTRAP START"
@@ -37,7 +37,7 @@ source "$ROOT_DIR/.venv/bin/activate"
 # ----------------------------------------------------------
 # Delegate to validation
 # ----------------------------------------------------------
-"$ROOT_DIR/validate.sh" "$RELEASE" "$ARCHIVE_FLAG"
+"$ROOT_DIR/validate.sh" "$RELEASE" "$@"
 
 echo "========================================"
 echo "BOOTSTRAP + VALIDATION COMPLETE ✅"
