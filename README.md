@@ -96,40 +96,88 @@ A test marked as passed with valid supporting evidence.
 
 ------------------------------------------------------------------------
 
-## How to Run
+## 🚀 How to Run (Updated)
 
-From the repository root:
+This project now provides a simplified, single-command workflow for validation.
 
-# Running a Test Release
+### 🔁 Fast Validation (recommended)
 
-This repository includes a sample release (`2026.04`) to demonstrate
-end-to-end functionality.
+Run the full pipeline + regression:
 
-## 1. Set up the environment
+./validate.sh 2026.04
 
-``` bash
-./reset_venv.sh
-```
+This will:
+- Generate the manifest
+- Run the reconciliation engine
+- Produce output in outputs/2026.04/
+- Automatically prepare regression baseline
+- Execute regression tests
 
-## 2. (Optional) Regenerate the manifest
+---
 
-If you've modified the release contents:
+### 🧼 Clean Bootstrap + Validation
 
-``` bash
-./generate_manifest.sh 2026.04
-```
+For a full clean rebuild:
 
-## 3. Run the reconciliation
+./bootstrap.sh 2026.04
 
-``` bash
-./run_release.sh 2026.04
-```
+This will:
+- Rebuild the virtual environment
+- Install dependencies
+- Run full validation (same as validate.sh)
 
-## Expected behaviour
+---
 
-The tool will: - Load the release manifest - Parse plan and execution
-files - Perform traceability reconciliation - Output results
-(e.g. reports, logs)
+### 📦 Optional: Archive Previous Output
+
+To keep previous outputs:
+
+./validate.sh 2026.04 --archive
+
+---
+
+## 🧪 Regression Testing (Automated)
+
+Regression is now integrated into the validation workflow.
+
+You no longer need to manually:
+- create folders
+- copy output files
+
+Everything is handled automatically by validate.sh.
+
+---
+
+### Expected Output
+
+Running validation...
+
+Comparing sheet: Summary
+Summary matches
+
+Comparing sheet: Traceability Gaps
+Traceability Gaps matches
+
+Comparing sheet: Execution_Detail
+Execution_Detail matches
+
+REGRESSION PASSED
+
+---
+
+### If it fails
+
+- Differences will be printed to the console
+- Investigate before committing
+- Only update baseline if change is intentional
+
+---
+
+## 🧠 Notes
+
+- validate.sh is the primary user entrypoint
+- bootstrap.sh is for clean environment rebuilds
+- run_release.sh is still available for direct execution if needed
 
 ## Advanced usage (optional)
 
