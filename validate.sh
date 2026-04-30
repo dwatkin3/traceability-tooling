@@ -27,7 +27,7 @@ fi
 OUTPUT_DIR="$ROOT_DIR/outputs/$RELEASE"
 OUTPUT_FILE="Traceability_Reconciliation_${RELEASE}.xlsx"
 REGRESSION_DIR="$ROOT_DIR/tests/regression/output"
-BASELINE_FILE="Traceability_Reconciliation_test.xlsx"
+BASELINE_FILE="Traceability_Reconciliation_${RELEASE}.xlsx"
 
 echo "========================================"
 echo "VALIDATION START"
