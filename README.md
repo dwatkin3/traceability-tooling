@@ -201,6 +201,8 @@ This guarantees:
 - Deterministic outputs  
 - Immediate detection of unintended changes  
 
+Diff files are automatically generated and attached to CI runs on failure.
+
 ---
 
 ## 🧠 Workflow Summary
@@ -223,7 +225,7 @@ This guarantees:
 
 ## 🚀 How to Run (Updated)
 
-This project now provides a simplified, single-command workflow for validation.
+This project provides a simplified, single-command workflow for validation.
 
 ### 🔁 Fast Validation (recommended)
 

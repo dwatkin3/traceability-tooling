@@ -25,9 +25,6 @@ def compare_sheets(sheet):
     df_base = df_base.sort_values(common_cols).reset_index(drop=True)
     df_new = df_new.sort_values(common_cols).reset_index(drop=True)
 
-    # TEMP: force a diff for testing
-    df_new.iloc[0, 0] = "CI_TEST_DIFF"
-
     # ----------------------------------------------------------
     # Compare sheets
     # ----------------------------------------------------------
