@@ -63,6 +63,8 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     exec_files=[root_dir/p for p in manifest.get('execution_files', [])]
     
     print("RUN_RELEASE STARTED")
+    
+    raise Exception("test failure")
 
     # -----------------------------
     # LOAD TEST PLAN (source of truth)
