@@ -93,3 +93,13 @@ jobs:
         run: |
           source .venv/bin/activate
           ./bootstrap.sh 2026.04
+
+      # ----------------------------------------------------
+      # Upload diff artifacts if regression fails
+      # ----------------------------------------------------
+      - name: Upload diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-diff
+          path: outputs/diff/*.xlsx

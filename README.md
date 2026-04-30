@@ -259,17 +259,6 @@ To keep previous outputs:
 
 ./validate.sh 2026.04 --archive
 
----
-
-## 🧪 Regression Testing (Automated)
-
-Regression is now integrated into the validation workflow.
-
-You no longer need to manually:
-- create folders
-- copy output files
-
-Everything is handled automatically by validate.sh.
 
 ---------------------------------------------------------------------
 
@@ -503,33 +492,38 @@ These sheets should always be used together for complete understanding.
 
 ------------------------------------------------------------------------
 
-## Regression Testing
+## 🧪 Regression Testing
 
-The engine includes automated regression validation to guarantee
-deterministic behaviour.
+Regression is fully integrated into the validation pipeline.
 
----
-
-### 🔧 Setup (required before running regression)
-
-The regression runner compares the latest output against a baseline file.
-
-Create the required folder and copy the latest generated output:
-
-mkdir -p tests/regression/output
-
-cp outputs/2026.04/Traceability_Reconciliation_2026.04.xlsx \
-   tests/regression/output/Traceability_Reconciliation_test.xlsx
-
-This step ensures the regression framework has a baseline to compare against.
+You do NOT need to:
+- create folders
+- copy output files
+- run regression scripts manually
 
 ---
 
-### ▶️ Run regression tests
+### How it works
 
-python tests/regression/run_regression.py
+Each validation run automatically compares:
+
+outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx  
+vs  
+tests/regression/baseline/Traceability_Reconciliation_YYYY.MM.xlsx
 
 ---
+
+### Update baseline (intentional changes only)
+
+./validate.sh 2026.04 --update-baseline
+
+---
+
+### Key principle
+
+Baseline represents expected output and should only be updated when:
+- behaviour changes are intentional
+- differences are understood
 
 ### ⚙️ What this does
 

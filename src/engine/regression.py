@@ -43,22 +43,22 @@ def compare_sheets(sheet):
         print("\nFirst differences:")
         print(diff.head(20))
 
+
         # ------------------------------------------------------
-        # Write diff to file (NEW)
+        # Write diff to Excel 
         # ------------------------------------------------------
-        from pathlib import Path
 
         output_dir = Path("outputs/diff")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         safe_sheet = sheet.replace(" ", "_")
-        diff_file = output_dir / f"diff_{safe_sheet}.csv"
+        diff_file = output_dir / f"diff_{safe_sheet}.xlsx"
 
-        diff.to_csv(diff_file)
+        # Write to Excel
+        with pd.ExcelWriter(diff_file, engine="openpyxl") as writer:
+            diff.to_excel(writer, sheet_name="Diff")
 
         print(f"\nDiff written to: {diff_file}")
-
-        raise SystemExit(1)
 
     print(f"✅ {sheet} matches")
 
