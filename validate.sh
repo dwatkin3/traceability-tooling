@@ -4,35 +4,56 @@ set -euo pipefail
 # ==========================================================
 # validate.sh
 #
-# Run release + regression (no environment rebuild)
+# Run release + regression validation
+#
+# MODES:
+#   Default:
+#     - Run engine
+#     - Compare output against baseline
+#
+#   --update-baseline:
+#     - Run engine
+#     - Update baseline from output
+#     - Then run comparison
 #
 # Usage:
-#   ./validate.sh <release-id> [--archive]
+#   ./validate.sh <release-id> [--archive] [--update-baseline]
 # ==========================================================
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <release-id> [--archive]" >&2
+  echo "Usage: $0 <release-id> [--archive] [--update-baseline]" >&2
   exit 1
 fi
 
 RELEASE="$1"
-ARCHIVE=false
 
-if [ "${2:-}" = "--archive" ]; then
-  ARCHIVE=true
-fi
+ARCHIVE=false
+UPDATE_BASELINE=false
+
+for arg in "${@:2}"; do
+  case $arg in
+    --archive)
+      ARCHIVE=true
+      ;;
+    --update-baseline)
+      UPDATE_BASELINE=true
+      ;;
+  esac
+done
 
 OUTPUT_DIR="$ROOT_DIR/outputs/$RELEASE"
 OUTPUT_FILE="Traceability_Reconciliation_${RELEASE}.xlsx"
-REGRESSION_DIR="$ROOT_DIR/tests/regression/output"
+
+BASELINE_DIR="$ROOT_DIR/tests/regression/baseline"
 BASELINE_FILE="Traceability_Reconciliation_${RELEASE}.xlsx"
 
 echo "========================================"
 echo "VALIDATION START"
 echo "Release: $RELEASE"
 echo "Archive: $ARCHIVE"
+echo "Update baseline: $UPDATE_BASELINE"
 echo "========================================"
 
 # ----------------------------------------------------------
@@ -52,31 +73,33 @@ if [ "$ARCHIVE" = true ] && [ -f "$OUTPUT_DIR/$OUTPUT_FILE" ]; then
 fi
 
 # ----------------------------------------------------------
-# Generate manifest (safe to always run)
+# Generate manifest
 # ----------------------------------------------------------
 echo "Generating manifest..."
 "$ROOT_DIR/generate_manifest.sh" "$RELEASE"
 
 # ----------------------------------------------------------
-# Run release
+# Run engine (ONCE)
 # ----------------------------------------------------------
 echo "Running release pipeline..."
 "$ROOT_DIR/run_release.sh" "$RELEASE"
 
 # ----------------------------------------------------------
-# Prepare regression baseline
+# Baseline handling
 # ----------------------------------------------------------
-echo "Preparing regression baseline..."
-mkdir -p "$REGRESSION_DIR"
+mkdir -p "$BASELINE_DIR"
 
-cp "$OUTPUT_DIR/$OUTPUT_FILE" \
-   "$REGRESSION_DIR/$BASELINE_FILE"
+if [ "$UPDATE_BASELINE" = true ]; then
+  echo "Updating baseline..."
+  cp "$OUTPUT_DIR/$OUTPUT_FILE" \
+     "$BASELINE_DIR/$BASELINE_FILE"
+fi
 
 # ----------------------------------------------------------
-# Run regression
+# Run regression (compare only)
 # ----------------------------------------------------------
 echo "Running regression..."
-python "$ROOT_DIR/tests/regression/run_regression.py"
+python -m src.engine.regression
 
 echo "========================================"
 echo "VALIDATION COMPLETE ✅"

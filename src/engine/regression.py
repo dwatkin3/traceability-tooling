@@ -1,20 +1,12 @@
 from pathlib import Path
 import pandas as pd
-import subprocess
 import sys
-
-BASELINE = Path("tests/regression/baseline/Traceability_Reconciliation_2026.04.xlsx")
-OUTPUT = Path("tests/regression/output/Traceability_Reconciliation_test.xlsx")
 
 RELEASE = "2026.04"
 
+BASELINE = Path(f"tests/regression/baseline/Traceability_Reconciliation_{RELEASE}.xlsx")
+OUTPUT = Path(f"outputs/{RELEASE}/Traceability_Reconciliation_{RELEASE}.xlsx")
 
-def run_engine():
-    print("Running reconciliation...")
-    subprocess.run(
-		["bash", "run_release.sh", RELEASE],
-		check=True
-		)
 
 def load_sheet(path, sheet):
     return pd.read_excel(path, sheet_name=sheet).fillna("")
@@ -26,43 +18,33 @@ def compare_sheets(sheet):
     df_base = load_sheet(BASELINE, sheet)
     df_new = load_sheet(OUTPUT, sheet)
 
-    # --------------------------------------------------
-    # Align columns (CRITICAL FIX)
-    # --------------------------------------------------
     common_cols = sorted(set(df_base.columns) & set(df_new.columns))
-
     df_base = df_base[common_cols]
     df_new = df_new[common_cols]
 
-    # --------------------------------------------------
-    # Sort rows to remove ordering noise
-    # --------------------------------------------------
     df_base = df_base.sort_values(common_cols).reset_index(drop=True)
     df_new = df_new.sort_values(common_cols).reset_index(drop=True)
 
-    # --------------------------------------------------
-    # Compare
-    # --------------------------------------------------
     if not df_base.equals(df_new):
         print(f"\n❌ MISMATCH in {sheet}")
-
         diff = df_base.compare(df_new)
         print(diff.head(20))
-
-        print("\nColumns baseline:", list(df_base.columns))
-        print("Columns new:", list(df_new.columns))
-
         return False
 
     print(f"✅ {sheet} matches")
     return True
 
-def main():
-    run_engine()
 
-    # Move output file to known location
-    latest = sorted(Path("outputs").rglob("Traceability_Reconciliation_*.xlsx"))[-1]
-    latest.rename(OUTPUT)
+def main():
+    print("Running regression...")
+
+    if not OUTPUT.exists():
+        print(f"❌ Missing output file: {OUTPUT}")
+        sys.exit(1)
+
+    if not BASELINE.exists():
+        print(f"❌ Missing baseline file: {BASELINE}")
+        sys.exit(1)
 
     sheets = [
         "Summary",
