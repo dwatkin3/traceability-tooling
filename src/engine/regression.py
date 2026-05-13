@@ -1,6 +1,16 @@
 from pathlib import Path
 import pandas as pd
 import sys
+from openpyxl import load_workbook
+
+EXPECTED_SHEETS = [
+    "Dashboard",
+    "Summary",
+    "Traceability Gaps",
+    "Execution_Detail",
+    "Missing",
+    "Extra",
+]
 
 RELEASE = "2026.04"
 
@@ -11,6 +21,44 @@ OUTPUT = Path(f"outputs/{RELEASE}/Traceability_Reconciliation_{RELEASE}.xlsx")
 def load_sheet(path, sheet):
     return pd.read_excel(path, sheet_name=sheet).fillna("")
 
+def compare_workbook_structure():
+
+    issues = []
+
+    wb = load_workbook(OUTPUT)
+
+    # -------------------------------
+    # Sheet existence
+    # -------------------------------
+    for sheet in EXPECTED_SHEETS:
+
+        if sheet not in wb.sheetnames:
+            issues.append(f"Missing sheet: {sheet}")
+
+    # -------------------------------
+    # Summary checks
+    # -------------------------------
+    if "Summary" in wb.sheetnames:
+
+        ws = wb["Summary"]
+
+        if ws.freeze_panes != "A2":
+            issues.append("Summary freeze panes missing")
+
+        if not ws.auto_filter.ref:
+            issues.append("Summary autofilter missing")
+
+        hyperlink_count = 0
+
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.hyperlink:
+                    hyperlink_count += 1
+
+        if hyperlink_count == 0:
+            issues.append("Summary hyperlinks missing")
+
+    return issues
 
 def compare_sheets(sheet):
     print(f"Comparing sheet: {sheet}")
@@ -67,6 +115,7 @@ def main():
         sys.exit(1)
 
     sheets = [
+        "Dashboard",
         "Summary",
         "Traceability Gaps",
         "Execution_Detail"
@@ -74,12 +123,29 @@ def main():
 
     results = [compare_sheets(s) for s in sheets]
 
-    if not all(results):
-        print("\n❌ REGRESSION FAILED")
+    data_ok = all(results)
+
+    structure_failures = compare_workbook_structure()
+
+    structure_ok = len(structure_failures) == 0
+
+    # ----------------------------------------------------------
+    # Structure failures
+    # ----------------------------------------------------------
+    if not structure_ok:
+
+        print("\n❌ WORKBOOK STRUCTURE FAILED")
+
+        for issue in structure_failures:
+            print(f" - {issue}")
+
+    # ----------------------------------------------------------
+    # Final outcome
+    # ----------------------------------------------------------
+    if not data_ok or not structure_ok:
         sys.exit(1)
 
     print("\n✅ REGRESSION PASSED")
-
 
 if __name__ == "__main__":
     main()
