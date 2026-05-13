@@ -8,11 +8,17 @@ from collections import defaultdict
 from docx import Document
 from .range_expander import expand_ranges
 from .id_normaliser import normalise_id, normalise_text
+from docx.document import Document as DocxDocument
+from docx.table import Table
+from docx.text.paragraph import Paragraph
+from docx.oxml.table import CT_Tbl
+from docx.oxml.text.paragraph import CT_P
+
 
 # -----------------------------
 # ID PATTERNS (single source of truth)
 # -----------------------------
-STORY_PATTERN = r"\bSTRY\d{7}\b"
+STORY_PATTERN = r"\bSTRY\d+\b"
 
 STORY_RE = re.compile(STORY_PATTERN)
 _SPLIT_RE = re.compile(r"[\s,;]+")
@@ -25,7 +31,10 @@ class PlanParseResult:
 def _extract_story_ids(text: str) -> List[str]:
     if not text:
         return []
-    return STORY_RE.findall(normalise_id(text))
+    return [
+	normalise_id(s)
+	for s in STORY_RE.findall(text)
+	]
 
 def _extract_test_tokens(text: str) -> List[str]:
     if not text:
@@ -69,78 +78,109 @@ def _extract_tests_from_cell(cell_text: str) -> Set[str]:
     return results
 
 
-RE_RELEASE = re.compile(r"(RLSE\d{7}\s+.+)", re.IGNORECASE)
+RE_RELEASE = re.compile(r"RLSE\d{7}", re.IGNORECASE)
 RE_TEST_ID = re.compile(r"\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b")
+
+
+def iter_block_items(parent):
+	"""
+	Yield paragraphs and tables in document order.
+	"""
+
+	if isinstance(parent, DocxDocument):
+		parent_elm = parent.element.body
+	else:
+		parent_elm = parent._element
+
+	for child in parent_elm.iterchildren():
+
+		if isinstance(child, CT_P):
+			yield Paragraph(child, parent)
+
+		elif isinstance(child, CT_Tbl):
+			yield Table(child, parent)
+
 
 def parse_plan_docx_with_release(path: Path):
 
-    doc = Document(str(path))
+	doc = Document(str(path))
 
-    release_story_to_tests = defaultdict(set)
-    story_to_release = {}
-    raw_rows = []
+	release_story_to_tests = defaultdict(set)
+	story_to_release = {}
+	raw_rows = []
 
-    current_release = None
-    
-    tables = iter(doc.tables)
+	current_release = None
 
-    # Walk document body in order (paragraphs + tables)
-    for block in doc.element.body:
+	for block in iter_block_items(doc):
 
-        # ---------- PARAGRAPH ----------
-        if block.tag.endswith('}p'):
-            text = block.text.strip()
+		# --------------------------------------------------
+		# PARAGRAPHS = release context
+		# --------------------------------------------------
+		if isinstance(block, Paragraph):
 
-            m = RE_RELEASE.search(text)
+			text = normalise_text(block.text)
 
-            if m:  
-                release_text = m.group(0).strip()
-                if release_text != current_release:
-                    current_release = release_text
-                continue
+			if not text:
+				continue
 
-        # ---------- TABLE ----------
-        if block.tag.endswith('}tbl'):
-            table = next(tables)
+			release_matches = RE_RELEASE.findall(text)
 
-            if not current_release:
-                continue  # tables before first RLSE header are ignored
+			if release_matches:
+				current_release = normalise_id(release_matches[0])
 
-            for row in table.rows:
-                cells = [normalise_text(c.text) for c in row.cells]
-                row_text = " ".join(cells)
+			continue
 
-                # Assume STORY ID is in column 0
-                story_cell = cells[0] if len(cells) > 0 else ""
-                stories = _extract_story_ids(story_cell)
+		# --------------------------------------------------
+		# TABLES = mappings
+		# --------------------------------------------------
+		if isinstance(block, Table):
 
-                if not stories:
-                    continue
+			for row in block.rows:
 
-                test_cell = cells[-1] if cells else ""
-                tests = _extract_tests_from_cell(test_cell)
+				row_text = " ".join(
+					cell.text.strip()
+					for cell in row.cells
+					if cell.text.strip()
+				)
 
-                for story in stories:
-                    key = (current_release, story)
+				row_text = normalise_text(row_text)
 
-                    # 🔥 ALWAYS create the mapping
-                    if tests:
-                        release_story_to_tests[key].update(tests)
-                    else:
-                        release_story_to_tests.setdefault(key, set())
+				if not row_text:
+					continue
 
-                    story_to_release[story] = current_release
+				stories = _extract_story_ids(row_text)
 
-                raw_rows.append((
-                    ",".join(stories),
-                    row_text,
-                    test_cell
-                ))
+				if not stories:
+					continue
 
-    if not release_story_to_tests:
-        raise ValueError(
-            f"Plan parsing produced zero (release, story) mappings for {path}"
-        )
+				tests = _extract_tests_from_cell(row_text)
 
-    return release_story_to_tests, story_to_release, raw_rows
+				for story in stories:
 
+					release_value = current_release or "UNKNOWN"
+
+					key = (release_value, story)
+
+					if tests:
+						release_story_to_tests[key].update(tests)
+					else:
+						release_story_to_tests.setdefault(key, set())
+
+					story_to_release[story] = release_value
+
+				raw_rows.append((
+					",".join(sorted(stories)),
+					row_text,
+					row_text
+				))
+
+	if not release_story_to_tests:
+		raise ValueError(
+			f"No STORY mappings found in {path}"
+		)
+
+	return (
+		dict(release_story_to_tests),
+		story_to_release,
+		raw_rows
+	)

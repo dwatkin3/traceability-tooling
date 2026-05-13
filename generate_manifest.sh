@@ -59,7 +59,14 @@ MANIFEST="$RELEASE_DIR/manifest.json"
 [[ -d "$EXEC_DIR"   ]] || { echo "ERROR: Missing $EXEC_DIR";   exit 1; }
 
 # ---- PLAN (.docx) ----
-PLAN_FILE_ABS="$(ls -t "$PLAN_DIR"/*.docx 2>/dev/null | head -n 1)"
+PLAN_FILE_ABS="$(
+  find "$PLAN_DIR" \
+    -maxdepth 1 \
+    -type f \
+    -name "*.docx" \
+    ! -name "~$*" \
+    | head -n 1
+)"
 
 if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
   echo "ERROR: No .docx plan file found in $PLAN_DIR"
