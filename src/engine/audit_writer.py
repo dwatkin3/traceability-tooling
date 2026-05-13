@@ -5,6 +5,110 @@ import pandas as pd
 import re
 from .status_utils import classify_status
 from .id_normaliser import normalise_id, normalise_text
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font
+
+def _format_workbook(workbook):
+
+	for ws in workbook.worksheets:
+
+		# --------------------------------------------------
+		# Freeze header row
+		# --------------------------------------------------
+		ws.freeze_panes = "A2"
+
+		# --------------------------------------------------
+		# Enable filters
+		# --------------------------------------------------
+		if ws.max_row > 1:
+			ws.auto_filter.ref = ws.dimensions
+
+		# --------------------------------------------------
+		# Auto-size columns
+		# --------------------------------------------------
+		for column_cells in ws.columns:
+
+			max_length = 0
+
+			for cell in column_cells:
+
+				try:
+					value = str(cell.value or "")
+				except Exception:
+					value = ""
+
+				if len(value) > max_length:
+					max_length = len(value)
+
+			column_letter = get_column_letter(
+				column_cells[0].column
+			)
+
+			# --------------------------------------------------
+			# Width rules
+			# --------------------------------------------------
+			if max_length < 10:
+				width = 12
+			elif max_length > 80:
+				width = 80
+			else:
+				width = max_length + 2
+
+			ws.column_dimensions[column_letter].width = width
+
+def _add_summary_hyperlinks(wb):
+
+	summary_ws = wb["Summary"]
+	gaps_ws = wb["Traceability Gaps"]
+	detail_ws = wb["Execution_Detail"]
+
+	gaps_lookup = {}
+	detail_lookup = {}
+
+	for row in range(2, gaps_ws.max_row + 1):
+
+		story = gaps_ws[f"B{row}"].value
+
+		if story:
+			gaps_lookup[story] = row
+
+	for row in range(2, detail_ws.max_row + 1):
+
+		story = detail_ws[f"B{row}"].value
+
+		if story and story not in detail_lookup:
+			detail_lookup[story] = row
+
+	for row in range(2, summary_ws.max_row + 1):
+
+		story = summary_ws[f"B{row}"].value
+
+		if story in gaps_lookup:
+
+			cell = summary_ws[f"C{row}"]
+
+			cell.hyperlink = (
+				f"#'Traceability Gaps'!A{gaps_lookup[story]}"
+			)
+
+			cell.font = Font(
+				color="0000FF",
+				underline="single"
+			)
+
+		if story in detail_lookup:
+
+			cell = summary_ws[f"D{row}"]
+
+			cell.hyperlink = (
+				f"#'Execution_Detail'!A{detail_lookup[story]}"
+			)
+
+			cell.font = Font(
+				color="0000FF",
+				underline="single"
+			)
 
 def _df_from_set(name: str, values: Iterable[str]) -> pd.DataFrame:
 	return pd.DataFrame({name: sorted(values)})
@@ -40,6 +144,54 @@ def _derive_exec_status(
 		return "🟢 Passed with evidence"
 
 	return "🟠 Mixed / Unknown"
+
+def _build_dashboard(df_summary, df_gaps):
+
+	planned_stories = len(
+		df_summary[df_summary["Release"] != "UNREFERENCED"]
+	)
+
+	executed_stories = len(
+		df_gaps[df_gaps["Coverage Count"] > 0]
+	)
+
+	failed_tests = int(df_summary["Failed"].sum())
+
+	missing_tests = int(df_gaps["Missing Count"].sum())
+
+	misaligned_tests = 0
+
+	for val in df_gaps["Misaligned Tests"].fillna(""):
+
+		if val:
+			misaligned_tests += len([
+				x for x in val.split(",")
+				if x.strip()
+			])
+
+	planned_total = int(df_gaps["Planned Count"].sum())
+	covered_total = int(df_gaps["Coverage Count"].sum())
+
+	coverage_pct = 0
+
+	if planned_total:
+		coverage_pct = round(
+			(covered_total / planned_total) * 100,
+			1
+		)
+
+	rows = [
+		("Planned stories", planned_stories),
+		("Executed stories", executed_stories),
+		("Planned Test Coverage %", coverage_pct),
+		("Failed tests", failed_tests),
+		("Missing tests", missing_tests),
+		("Misaligned tests", misaligned_tests),
+	]
+
+	return pd.DataFrame(rows, columns=["Metric", "Value"])
+
+
 
 def _build_execution_detail(df_exec, story_to_tests, story_to_release):
 	"""
@@ -569,6 +721,11 @@ def write_output(
 		story_to_release,
 	)
 
+	df_dashboard = _build_dashboard(
+		df_summary,
+		df_gaps,
+		)
+
 	df_missing = _df_from_set("MissingTest", result.missing_tests)
 	df_extra = _df_from_set("ExtraTest", result.extra_tests)
 
@@ -604,7 +761,18 @@ def write_output(
 	# Write Excel
 	# --------------------------------------------------
 	with pd.ExcelWriter(output_path, engine="openpyxl") as xw:
-		df_summary.to_excel(xw, sheet_name="Summary", index=False)
+
+		df_dashboard.to_excel(
+			xw,
+			sheet_name="Dashboard",
+			index=False,
+		)
+
+		df_summary.to_excel(
+			xw,
+			sheet_name="Summary",
+			index=False,
+		)
 		df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
 		df_missing.to_excel(xw, sheet_name="Missing", index=False)
 		df_extra.to_excel(xw, sheet_name="Extra", index=False)
@@ -622,6 +790,14 @@ def write_output(
 			df_plan_raw.to_excel(xw, sheet_name="Plan_Raw", index=False)
 			df_exec.to_excel(xw, sheet_name="Exec_Raw", index=False)
 
+		# --------------------------------------------------
+		# Workbook formatting
+		# --------------------------------------------------
+		_format_workbook(xw.book)
+
+		# Hyperlinks
+		_add_summary_hyperlinks(xw.book)
+
 	# --------------------------------------------------
 	# Optional debug outputs (CSV)
 	# --------------------------------------------------
@@ -634,3 +810,5 @@ def write_output(
 		df_exec.to_csv(debug_dir / "exec_extracted.csv", index=False)
 		df_missing.to_csv(debug_dir / "missing_tests.csv", index=False)
 		df_extra.to_csv(debug_dir / "extra_tests.csv", index=False)
+
+
