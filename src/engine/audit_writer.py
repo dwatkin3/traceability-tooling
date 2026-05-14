@@ -280,6 +280,108 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
 
 	return pd.DataFrame(rows)
 
+def _build_traceability_matrix(
+	df_exec,
+	story_to_tests,
+	pass_values,
+):
+	"""
+	Canonical flattened traceability dataset.
+
+	One row per:
+	Release -> Story -> Test ID
+
+	Designed for:
+	- filtering
+	- audit
+	- Power BI
+	- machine-readable exports
+	"""
+
+	rows = []
+
+	# --------------------------------------------------
+	# Status classification
+	# --------------------------------------------------
+	df_exec = df_exec.copy()
+
+	df_exec["Evidence"] = (
+		df_exec["Evidence"]
+		.astype(str)
+		.str.lower()
+	)
+
+	df_exec["StatusClass"] = df_exec["Status"].apply(
+		lambda s: classify_status(s, pass_values)
+	)
+
+	# --------------------------------------------------
+	# Fast lookup by Test ID
+	# --------------------------------------------------
+	exec_by_test = df_exec.groupby("Test ID")
+
+	for story_key, planned_tests in sorted(story_to_tests.items()):
+
+		release = normalise_text(story_key[0])
+		story = normalise_id(story_key[1])
+
+		for test_id in sorted(planned_tests):
+
+			test_clean = normalise_id(test_id)
+
+			# --------------------------------------------------
+			# Executed somewhere?
+			# --------------------------------------------------
+			if test_clean in exec_by_test.groups:
+
+				exec_rows = df_exec.loc[
+					exec_by_test.groups[test_clean]
+				]
+
+				for _, r in exec_rows.iterrows():
+
+					exec_story = normalise_id(r["Story"])
+
+					aligned = exec_story == story
+
+					traceability = (
+						"ALIGNED"
+						if aligned
+						else "MISALIGNED"
+					)
+
+					rows.append({
+						"Release": release,
+						"Planned Story": story,
+						"Test ID": test_clean,
+						"Execution Story": exec_story,
+						"Status": r["Status"],
+						"Status Class": r["StatusClass"],
+						"Evidence": r["Evidence"],
+						"Aligned": "YES" if aligned else "NO",
+						"Traceability Result": traceability,
+						"Exec File": normalise_text(r["File"]),
+						"Sheet": normalise_text(r["Sheet"]),
+					})
+
+			else:
+
+				rows.append({
+					"Release": release,
+					"Planned Story": story,
+					"Test ID": test_clean,
+					"Execution Story": "",
+					"Status": "NOT EXECUTED",
+					"Status Class": "NOT_EXECUTED",
+					"Evidence": "",
+					"Aligned": "NO",
+					"Traceability Result": "NOT_EXECUTED",
+					"Exec File": "",
+					"Sheet": "",
+				})
+
+	return pd.DataFrame(rows)
+
 def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 	"""
 	Build story-level summary.
@@ -721,6 +823,12 @@ def write_output(
 		story_to_release,
 	)
 
+	df_matrix = _build_traceability_matrix(
+		df_exec,
+		story_to_tests,
+		pass_values,
+	)
+
 	df_dashboard = _build_dashboard(
 		df_summary,
 		df_gaps,
@@ -773,6 +881,13 @@ def write_output(
 			sheet_name="Summary",
 			index=False,
 		)
+
+		df_matrix.to_excel(
+			xw,
+			sheet_name="Traceability_Matrix",
+			index=False
+		)
+		
 		df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
 		df_missing.to_excel(xw, sheet_name="Missing", index=False)
 		df_extra.to_excel(xw, sheet_name="Extra", index=False)
