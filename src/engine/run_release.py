@@ -53,6 +53,29 @@ def derive_test_result(status, has_evidence, pass_values):
 
     return "N/A"
 
+def expand_evidence_filename(filename):
+    """
+    Expand filenames like:
+    IS01A-F.docx -> IS01A, IS01B ... IS01F
+    """
+
+    name = filename.upper()
+
+    m = re.search(
+        r"([A-Z]+)(\d+)([A-Z])-([A-Z])",
+        name
+    )
+
+    if not m:
+        return []
+
+    prefix, number, start, end = m.groups()
+
+    return [
+        f"{prefix}{number}{chr(c)}"
+        for c in range(ord(start), ord(end) + 1)
+    ]
+
 def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patterns_path: Path, hints_path: Path, output_path: Path|None=None):
     root_dir=Path(root_dir)
     settings=load_settings(Path(settings_path))
@@ -197,14 +220,37 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
 
     if evidence_dir.exists():
         for p in evidence_dir.rglob("*"):
-            evidence_files.append(p.name.lower())
- 
+            evidence_files.append({
+                    "filename": p.name,
+                    "expanded": expand_evidence_filename(p.name)
+                })
+            
     def normalise(s):
         return re.sub(r'[^a-z0-9]', '', s.lower())
 
     def has_evidence(test_id):
+
         t = normalise(test_id)
-        return any(t in normalise(f) for f in evidence_files)
+
+        for evidence in evidence_files:
+
+            filename = evidence["filename"]
+            expanded = evidence["expanded"]
+
+            # --------------------------------------------------
+            # Expanded range match
+            # --------------------------------------------------
+            if expanded:
+                if test_id.upper() in expanded:
+                    return True
+
+            # --------------------------------------------------
+            # Fallback legacy filename match
+            # --------------------------------------------------
+            if t in normalise(filename):
+                return True
+
+        return False
 
     # ✅ THIS MUST BE OUTSIDE THE FUNCTION
     df_exec["Evidence"] = df_exec["Test ID"].apply(
