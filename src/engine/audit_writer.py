@@ -315,15 +315,6 @@ def _build_traceability_matrix(
 		lambda s: classify_status(s, pass_values)
 	)
 
-	print("\nTRACEABILITY MATRIX DEBUG")
-
-	print("release_story_to_tests sample:")
-	for k in list(release_story_to_tests.keys())[:5]:
-		print(k)
-
-	print("\nExecution sample:")
-	print(df_exec[["Story", "Test ID"]].head())
-
 	# --------------------------------------------------
 	# Fast lookup by Test ID
 	# --------------------------------------------------
@@ -838,13 +829,6 @@ def write_output(
 		pass_values,
 	)
 
-	print("\nRELEASE STORY TEST DEBUG")
-
-	for k, v in list(release_story_to_tests.items())[:5]:
-		print(k)
-		print(v)
-		print(type(v))
-
 	df_dashboard = _build_dashboard(
 		df_summary,
 		df_gaps,
@@ -904,9 +888,6 @@ def write_output(
 			index=False
 		)
 		
-		print("\nMATRIX SHAPE:", df_matrix.shape)
-		print(df_matrix.head(10))
-
 		df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
 		df_missing.to_excel(xw, sheet_name="Missing", index=False)
 		df_extra.to_excel(xw, sheet_name="Extra", index=False)
