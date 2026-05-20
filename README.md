@@ -319,20 +319,37 @@ Each release folder should contain:
 
 With:
 
--   One test plan file 
--   One or more execution files 
--   A manifest.json describing inputs
+- One or more Test Plan / Specification documents (`.docx`)
+- One or more execution workbooks (`.xlsx`)
+- A `manifest.json` describing the inputs
+
+The reconciler supports both:
+
+- Traditional single-specification releases
+- Aggregated multi-workstream releases
+
+Examples include:
+
+- Multiple supplier workstreams
+- Independently delivered feature packs
+- Mixed release-identification models
 
 Example:
 
-``` json
+```json
 {
-  "plan_file": "Test_Plan.xlsx",
+  "plan_files": [
+    "20260508-Test Specification_Stock Management v0.1.docx",
+    "20260508-Test Specification_Time2Work_Boomi Integration v0.1.docx",
+    "20260508-Test Specification_Dynamic Scheduling and Schedule Optimisation v0.1.docx"
+  ],
   "execution_files": [
-    "Execution_1.xlsx",
-    "Execution_2.xlsx"
+    "Stock Management Test Assurance Scripts v0.1.xlsx",
+    "T2W Boomi Test Assurance Scripts v0.1.xlsx",
+    "Dynamic Scheduling and Optimisation Test Assurance Scripts v0.1.xlsx"
   ]
 }
+```
 ```
 
 ------------------------------------------------------------------------
