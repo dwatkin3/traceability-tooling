@@ -1,5 +1,7 @@
 {
-  "plan_file": "plan/EMFS Test Specification – April Upgrade v0.6.docx",
+  "plan_files": [
+    "plan/EMFS Test Specification – April Upgrade v0.6.docx"
+  ],
   "execution_files": [
     "execution/Audit Validation Test Assurance Scripts v0.3.xlsx",
     "execution/Extraction Validation Test Assurance Scripts v0.3.xlsx"

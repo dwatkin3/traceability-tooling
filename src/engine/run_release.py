@@ -18,7 +18,7 @@ from .column_hints_loader import load_column_hints
 from .exec_parser import parse_execution_xlsx
 from .reconcile import reconcile
 from .audit_writer import write_output
-from .plan_parser import parse_plan_docx_with_release
+from .plan_parser import parse_plan_documents
 from collections import defaultdict
 import re
 
@@ -82,7 +82,16 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     patterns=load_patterns(Path(patterns_path))
     hints=load_column_hints(Path(hints_path))
     manifest=json.loads(Path(manifest_path).read_text())
-    plan_file=root_dir/manifest['plan_file']
+    plan_files = [
+        root_dir / p
+        for p in manifest.get("plan_files", [])
+    ]
+
+    if not plan_files:
+        raise ValueError(
+            "No plan specification files found in manifest"
+        )
+    
     exec_files=[root_dir/p for p in manifest.get('execution_files', [])]
     
     print("RUN_RELEASE STARTED")
@@ -94,9 +103,11 @@ def run_release(root_dir: Path, manifest_path: Path, settings_path: Path, patter
     # - release_story_to_tests: (release, story) → tests
     # - story_to_release: story → release mapping (for reporting later)
 
-    release_story_to_tests, story_to_release, plan_raw_rows = parse_plan_docx_with_release(
-            plan_file
-    )
+    (
+        release_story_to_tests,
+        story_to_release,
+        plan_raw_rows
+    ) = parse_plan_documents(plan_files)
 
     # NOTE:
     # release_story_to_tests is keyed as (release, story)

@@ -193,7 +193,7 @@ def _build_dashboard(df_summary, df_gaps):
 
 
 
-def _build_execution_detail(df_exec, story_to_tests, story_to_release):
+def _build_execution_detail(df_exec, release_story_to_tests, story_to_release):
 	"""
 	Build detailed execution mapping per story + test.
 
@@ -211,7 +211,7 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
 	# --------------------------------------------------
 	exec_by_test = df_exec.groupby("Test ID")
 
-	for story_key, planned_tests in story_to_tests.items():
+	for story_key, planned_tests in release_story_to_tests.items():
 
 		# --------------------------------------------------
 		# Unpack (release, story) safely
@@ -282,7 +282,7 @@ def _build_execution_detail(df_exec, story_to_tests, story_to_release):
 
 def _build_traceability_matrix(
 	df_exec,
-	story_to_tests,
+	release_story_to_tests,
 	pass_values,
 ):
 	"""
@@ -315,12 +315,21 @@ def _build_traceability_matrix(
 		lambda s: classify_status(s, pass_values)
 	)
 
+	print("\nTRACEABILITY MATRIX DEBUG")
+
+	print("release_story_to_tests sample:")
+	for k in list(release_story_to_tests.keys())[:5]:
+		print(k)
+
+	print("\nExecution sample:")
+	print(df_exec[["Story", "Test ID"]].head())
+
 	# --------------------------------------------------
 	# Fast lookup by Test ID
 	# --------------------------------------------------
 	exec_by_test = df_exec.groupby("Test ID")
 
-	for story_key, planned_tests in sorted(story_to_tests.items()):
+	for story_key, planned_tests in sorted(release_story_to_tests.items()):
 
 		release = normalise_text(story_key[0])
 		story = normalise_id(story_key[1])
@@ -382,7 +391,7 @@ def _build_traceability_matrix(
 
 	return pd.DataFrame(rows)
 
-def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
+def _build_summary(release_story_to_tests, df_exec, pass_values, story_to_release):
 	"""
 	Build story-level summary.
 
@@ -436,7 +445,7 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
 	summary_rows = []
 
-	for story_key, planned_tests in sorted(story_to_tests.items()):
+	for story_key, planned_tests in sorted(release_story_to_tests.items()):
 
 		# --------------------------------------------------
 		# UNPACK (release, story)
@@ -566,7 +575,7 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 	# --------------------------------------------------
 	planned_stories = {
 		normalise_id(story)
-		for (_, story) in story_to_tests.keys()
+		for (_, story) in release_story_to_tests.keys()
 	}
 
 	executed_stories = {
@@ -621,7 +630,7 @@ def _build_summary(story_to_tests, df_exec, pass_values, story_to_release):
 
 	return pd.DataFrame(summary_rows).sort_values(["Release", "Story"])
 
-def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
+def _build_traceability_gaps(df_exec, release_story_to_tests, story_to_release):
 	"""
 	Build traceability gap analysis per story.
 
@@ -648,7 +657,7 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
 	# --------------------------------------------------
 	planned_stories = {
 		normalise_id(story)
-		for (_, story) in story_to_tests.keys()
+		for (_, story) in release_story_to_tests.keys()
 	}
 
 	executed_stories = set(
@@ -659,7 +668,7 @@ def _build_traceability_gaps(df_exec, story_to_tests, story_to_release):
 	# --------------------------------------------------
 	# NORMAL planned story reconciliation
 	# --------------------------------------------------
-	for story_key, planned_tests in sorted(story_to_tests.items()):
+	for story_key, planned_tests in sorted(release_story_to_tests.items()):
 
 		# --------------------------------------------------
 		# UNPACK (release, story)
@@ -774,7 +783,7 @@ def write_output(
 	output_path,
 	plan_raw_rows,
 	exec_rows,
-	story_to_tests,
+	release_story_to_tests,
 	result,
 	story_to_release=None,
 	df_exec=None,
@@ -811,7 +820,7 @@ def write_output(
 	# Build outputs
 	# --------------------------------------------------
 	df_summary = _build_summary(
-		story_to_tests,
+		release_story_to_tests,
 		df_exec,
 		pass_values,
 		story_to_release,
@@ -819,15 +828,22 @@ def write_output(
 
 	df_gaps = _build_traceability_gaps(
 		df_exec,
-		story_to_tests,
+		release_story_to_tests,
 		story_to_release,
 	)
 
 	df_matrix = _build_traceability_matrix(
 		df_exec,
-		story_to_tests,
+		release_story_to_tests,
 		pass_values,
 	)
+
+	print("\nRELEASE STORY TEST DEBUG")
+
+	for k, v in list(release_story_to_tests.items())[:5]:
+		print(k)
+		print(v)
+		print(type(v))
 
 	df_dashboard = _build_dashboard(
 		df_summary,
@@ -842,7 +858,7 @@ def write_output(
 	# --------------------------------------------------
 	st_rows = [
 		(release, story, t)
-		for (release, story), tests in sorted(story_to_tests.items())
+		for (release, story), tests in sorted(release_story_to_tests.items())
 		for t in sorted(tests)
 	]
 
@@ -888,6 +904,9 @@ def write_output(
 			index=False
 		)
 		
+		print("\nMATRIX SHAPE:", df_matrix.shape)
+		print(df_matrix.head(10))
+
 		df_gaps.to_excel(xw, sheet_name="Traceability Gaps", index=False)
 		df_missing.to_excel(xw, sheet_name="Missing", index=False)
 		df_extra.to_excel(xw, sheet_name="Extra", index=False)
@@ -896,7 +915,7 @@ def write_output(
 
 		df_detail = _build_execution_detail(
 			df_exec,
-			story_to_tests,
+			release_story_to_tests,
 			story_to_release,
 		)
 		df_detail.to_excel(xw, sheet_name="Execution_Detail", index=False)

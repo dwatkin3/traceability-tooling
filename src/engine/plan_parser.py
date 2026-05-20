@@ -47,6 +47,7 @@ def _extract_test_tokens(text: str) -> List[str]:
     return [normalise_id(t) for t in toks]
 
 def _extract_tests_from_cell(cell_text: str) -> Set[str]:
+
     if not cell_text:
         return set()
 
@@ -60,18 +61,32 @@ def _extract_tests_from_cell(cell_text: str) -> Set[str]:
     # --------------------------------------------------
     # 1. EXPAND RANGES FIRST (before splitting)
     # --------------------------------------------------
-    range_matches = re.findall(r"\b([A-Z]{2,}\d+)\s*-\s*([A-Z]{2,}\d+)\b", text)
+    range_matches = re.findall(
+        r"\b([A-Z]{2,}\d+)\s*-\s*([A-Z]{2,}\d+)\b",
+        text
+    )
 
     for start, end in range_matches:
         results.update(expand_ranges([f"{start}-{end}"]))
 
     # Remove ranges from text so we don’t double-count
-    text = re.sub(r"\b[A-Z]{2,}\d+\s*-\s*[A-Z]{2,}\d+\b", "", text)
+    text = re.sub(
+        r"\b[A-Z]{2,}\d+\s*-\s*[A-Z]{2,}\d+\b",
+        "",
+        text
+    )
 
     # --------------------------------------------------
     # 2. EXTRACT INDIVIDUAL TEST IDS
+    # Supports:
+    # AU12
+    # IS01A
+    # TP-CREW-01
     # --------------------------------------------------
-    singles = re.findall(r"\b(?!STRY)[A-Z]{2,}\d+\b", text)
+    singles = re.findall(
+        r"\b(?!STRY)[A-Z]+(?:-[A-Z]+)*-\d+[A-Z]*\b|\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b",
+        text
+    )
 
     results.update(normalise_id(t) for t in singles)
 
@@ -79,8 +94,13 @@ def _extract_tests_from_cell(cell_text: str) -> Set[str]:
 
 
 RE_RELEASE = re.compile(r"RLSE\d{7}", re.IGNORECASE)
-RE_TEST_ID = re.compile(r"\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b")
-
+RE_RELEASE_IDENTIFIER = re.compile(
+	r"Release Identifier:\s*(.+)",
+	re.IGNORECASE
+)
+RE_TEST_ID = re.compile(
+    r"\b(?!STRY)[A-Z]+(?:-[A-Z]+)*-\d+[A-Z]*\b|\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b"
+)
 
 def iter_block_items(parent):
 	"""
@@ -123,7 +143,35 @@ def parse_plan_docx_with_release(path: Path):
 			if not text:
 				continue
 
+			# --------------------------------------------------
+			# Legacy RLSE release identifiers
+			# --------------------------------------------------
 			release_matches = RE_RELEASE.findall(text)
+
+			if release_matches:
+				current_release = normalise_id(
+					release_matches[0]
+				)
+
+			# --------------------------------------------------
+			# New descriptive release identifiers
+			# --------------------------------------------------
+			else:
+
+				release_identifier = (
+					RE_RELEASE_IDENTIFIER.search(text)
+				)
+
+				if release_identifier:
+
+					current_release = normalise_text(
+						release_identifier.group(1)
+					)
+
+					print(
+						f"Detected release identifier: "
+						f"{current_release}"
+					)
 
 			if release_matches:
 				current_release = normalise_id(release_matches[0])
@@ -183,4 +231,48 @@ def parse_plan_docx_with_release(path: Path):
 		dict(release_story_to_tests),
 		story_to_release,
 		raw_rows
+	)
+
+def parse_plan_documents(plan_files):
+	"""
+	Aggregate multiple specification documents into a single
+	release/story/test structure.
+	"""
+
+	combined_story_to_tests = defaultdict(set)
+	combined_story_to_release = {}
+	combined_raw_rows = []
+
+	for plan_file in plan_files:
+
+		path = Path(plan_file)
+
+		(
+			story_to_tests,
+			story_to_release,
+			raw_rows
+		) = parse_plan_docx_with_release(path)
+
+		# --------------------------------------------------
+		# Merge story -> tests
+		# --------------------------------------------------
+		for key, tests in story_to_tests.items():
+			combined_story_to_tests[key].update(tests)
+
+		# --------------------------------------------------
+		# Merge story -> release
+		# --------------------------------------------------
+		combined_story_to_release.update(
+			story_to_release
+		)
+
+		# --------------------------------------------------
+		# Merge raw rows
+		# --------------------------------------------------
+		combined_raw_rows.extend(raw_rows)
+
+	return (
+		dict(combined_story_to_tests),
+		combined_story_to_release,
+		combined_raw_rows
 	)

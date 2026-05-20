@@ -675,3 +675,155 @@ It should be treated as a controlled component within the delivery
 process, not a disposable script.
 
 
+
+
+------------------------------------------------------------------------
+
+## 🆕 Recent Enhancements
+
+### Multi-Document Release Support
+
+The reconciler now supports releases containing:
+
+- Multiple Test Specification / Plan documents
+- Multiple execution workbooks
+- Mixed release identification models
+
+Supported release identification patterns include:
+
+#### Classic Release IDs
+Example:
+- `RLSE0010179`
+
+#### Descriptive Release Identifiers
+Example:
+- `Dynamic Scheduling and Schedule Optimisation`
+- `Stock Management`
+- `Time2Work Boomi Integration`
+
+This allows aggregation of independently delivered workstreams into a single reconciliation output.
+
+------------------------------------------------------------------------
+
+### Expanded Test ID Support
+
+The parser now supports:
+
+- Standard IDs:
+  - `AU12`
+  - `IS01A`
+
+- Hyphenated IDs:
+  - `TP-CREW-01`
+  - `TP-OPT-14`
+
+- Evidence ranges:
+  - `IS01A-F`
+  - `IS14A-K`
+
+Range identifiers are automatically expanded during reconciliation and evidence matching.
+
+------------------------------------------------------------------------
+
+### 📋 Dashboard Sheet
+
+Outputs now include a dedicated `Dashboard` worksheet providing:
+
+| Metric | Description |
+|---|---|
+| Planned stories | Stories present in specification |
+| Executed stories | Stories with execution coverage |
+| Planned Test Coverage % | Coverage percentage |
+| Failed tests | Count of failed executions |
+| Missing tests | Planned but not executed |
+| Misaligned tests | Executed under incorrect story |
+
+This provides a rapid governance and CAB-facing summary.
+
+------------------------------------------------------------------------
+
+### 🔗 Workbook Navigation Improvements
+
+Generated workbooks now include:
+
+- Auto filters
+- Frozen header rows
+- Automatic column sizing
+- Hyperlinks from:
+  - Summary → Traceability Gaps
+  - Summary → Execution Detail
+
+This improves usability during audit and governance review.
+
+------------------------------------------------------------------------
+
+### 🧾 Canonical Traceability Matrix
+
+A new `Traceability_Matrix` sheet provides a flattened audit dataset.
+
+Each row contains:
+
+`Release -> Story -> Test ID -> Execution Status -> Evidence -> Alignment`
+
+This sheet is designed for:
+
+- filtering
+- audit analysis
+- Power BI ingestion
+- downstream governance tooling
+- machine-readable reconciliation
+
+------------------------------------------------------------------------
+
+## 🪟 Windows Support
+
+The recommended Windows execution approach is Git Bash.
+
+### Install Git Bash
+
+Download from:
+
+https://git-scm.com/download/win
+
+Install using default options.
+
+### First-Time Setup
+
+Open Git Bash and run:
+
+```bash
+git clone https://github.com/dwatkin3/traceability-tooling.git
+cd traceability-tooling
+./bootstrap.sh 2026.04
+```
+
+### Normal Usage
+
+```bash
+./validate.sh 2026.04
+```
+
+------------------------------------------------------------------------
+
+## 🔍 Regression Philosophy
+
+Regression now validates both:
+
+### Data Integrity
+- Summary
+- Traceability Gaps
+- Execution Detail
+- Dashboard
+- Traceability Matrix
+
+### Workbook Structure
+- Required sheets present
+- Hyperlinks present
+- Freeze panes enabled
+- Filters enabled
+
+This helps detect both:
+- reconciliation logic regressions
+- workbook usability regressions
+
+------------------------------------------------------------------------

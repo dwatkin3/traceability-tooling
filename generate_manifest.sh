@@ -73,7 +73,28 @@ if [[ -z "${PLAN_FILE_ABS:-}" ]]; then
   exit 1
 fi
 
-PLAN_FILE_REL="plan/$(basename "$PLAN_FILE_ABS")"
+# ---- TEST SPECIFICATIONS (.docx) ----
+SPEC_JSON=""
+
+for f in "$PLAN_DIR"/*Specification*.docx; do
+  [ -e "$f" ] || continue
+
+  rel="plan/$(basename "$f")"
+
+  if [ -z "$SPEC_JSON" ]; then
+    SPEC_JSON="    \"$rel\""
+  else
+    SPEC_JSON="${SPEC_JSON},\n    \"$rel\""
+  fi
+done
+
+# Convert literal \n into real newlines
+SPEC_JSON=$(printf "%b" "$SPEC_JSON")
+
+if [ -z "$SPEC_JSON" ]; then
+  echo "ERROR: No specification .docx files found in $PLAN_DIR"
+  exit 1
+fi
 
 # ---- EXECUTION (.xlsx) ----
 EXEC_JSON=""
@@ -100,7 +121,9 @@ fi
 # ---- Write manifest.json ----
 cat > "$MANIFEST" <<EOF
 {
-  "plan_file": "$PLAN_FILE_REL",
+  "plan_files": [
+$SPEC_JSON
+  ],
   "execution_files": [
 $EXEC_JSON
   ]
