@@ -365,19 +365,55 @@ def _build_traceability_matrix(
 					})
 
 			else:
+				
+				rows.append({
+                    "Release": release,
+                    "Planned Story": story,
+                    "Test ID": test_clean,
+                    "Execution Story": "",
+                    "Status": "NOT EXECUTED",
+                    "Status Class": "NOT_EXECUTED",
+                    "Evidence": "",
+                    "Aligned": "NO",
+                    "Traceability Result": "NOT_EXECUTED",
+                    "Exec File": "",
+                    "Sheet": "",
+                })
+
+		# --------------------------------------------------
+		# EXECUTION-ONLY STORIES
+		# --------------------------------------------------
+		planned_stories = {
+			normalise_id(story)
+			for (_, story) in release_story_to_tests.keys()
+		}
+
+		executed_stories = {
+			normalise_id(s)
+			for s in df_exec["Story"].dropna()
+			if isinstance(s, str) and s.startswith("STRY")
+		}
+
+		execution_only = executed_stories - planned_stories
+
+		for story in sorted(execution_only):
+
+			group = df_exec[df_exec["Story"] == story]
+
+			for _, r in group.iterrows():
 
 				rows.append({
-					"Release": release,
-					"Planned Story": story,
-					"Test ID": test_clean,
-					"Execution Story": "",
-					"Status": "NOT EXECUTED",
-					"Status Class": "NOT_EXECUTED",
-					"Evidence": "",
+					"Release": "UNREFERENCED",
+					"Planned Story": "",
+					"Test ID": normalise_id(r["Test ID"]),
+					"Execution Story": story,
+					"Status": r["Status"],
+					"Status Class": r["StatusClass"],
+					"Evidence": r["Evidence"],
 					"Aligned": "NO",
-					"Traceability Result": "NOT_EXECUTED",
-					"Exec File": "",
-					"Sheet": "",
+					"Traceability Result": "EXECUTION_ONLY",
+					"Exec File": normalise_text(r["File"]),
+					"Sheet": normalise_text(r["Sheet"]),
 				})
 
 	return pd.DataFrame(rows)
