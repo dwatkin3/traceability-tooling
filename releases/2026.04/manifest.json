@@ -1,9 +1,11 @@
 {
   "plan_files": [
-    "plan/EMFS Test Specification – April Upgrade v0.6.docx"
+    "plan/EMFS Test Specification – April Upgrade v0.6.docx",
+    "plan/EMFS Test Specification – Dynamic Scheduling.docx"
   ],
   "execution_files": [
     "execution/Audit Validation Test Assurance Scripts v0.3.xlsx",
+    "execution/Dynamic Scheduling and Optimisation Test Assurance Scripts v0.1.xlsx",
     "execution/Extraction Validation Test Assurance Scripts v0.3.xlsx"
   ]
 }

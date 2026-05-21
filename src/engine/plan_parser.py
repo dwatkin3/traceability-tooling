@@ -54,44 +54,95 @@ def _extract_tests_from_cell(cell_text: str) -> Set[str]:
     # --------------------------------------------------
     # NORMALISE DASHES
     # --------------------------------------------------
-    text = cell_text.replace("–", "-").replace("—", "-")
+    text = (
+        cell_text
+        .replace("–", "-")
+        .replace("—", "-")
+    )
 
     results = set()
 
     # --------------------------------------------------
-    # 1. EXPAND RANGES FIRST (before splitting)
+    # 1. FULL TOKEN RANGE EXPANSION
+    # Supports:
+    # AU01-AU05
+    # TP-OPT-01-TP-OPT-03
     # --------------------------------------------------
-    range_matches = re.findall(
-        r"\b([A-Z]{2,}\d+)\s*-\s*([A-Z]{2,}\d+)\b",
-        text
+    full_range_re = re.compile(
+        r"\b([A-Z]+(?:-[A-Z]+)*\d+[A-Z]*)"
+        r"\s*-\s*"
+        r"([A-Z]+(?:-[A-Z]+)*\d+[A-Z]*)\b"
     )
 
-    for start, end in range_matches:
-        results.update(expand_ranges([f"{start}-{end}"]))
+    for match in full_range_re.finditer(text):
 
-    # Remove ranges from text so we don’t double-count
-    text = re.sub(
-        r"\b[A-Z]{2,}\d+\s*-\s*[A-Z]{2,}\d+\b",
-        "",
-        text
-    )
+        start = normalise_id(match.group(1))
+        end = normalise_id(match.group(2))
+
+        try:
+            expanded = expand_ranges([f"{start}-{end}"])
+            results.update(expanded)
+
+            # remove matched range so singles do not double-count
+            text = text.replace(match.group(0), " ")
+
+        except Exception:
+            pass
 
     # --------------------------------------------------
-    # 2. EXTRACT INDIVIDUAL TEST IDS
+    # 2. COMPACT RANGE EXPANSION
+    # Supports:
+    # IS70A-D
+    # AU10-C
+    # --------------------------------------------------
+    compact_range_re = re.compile(
+        r"\b([A-Z]{2,}\d+)([A-Z])-([A-Z])\b"
+    )
+
+    for match in compact_range_re.finditer(text):
+
+        prefix = match.group(1)
+        start_suffix = match.group(2)
+        end_suffix = match.group(3)
+
+        expanded = [
+            f"{prefix}{chr(c)}"
+            for c in range(
+                ord(start_suffix),
+                ord(end_suffix) + 1
+            )
+        ]
+
+        results.update(expanded)
+
+        # remove compact range so singles do not double-count
+        text = text.replace(match.group(0), " ")
+
+    # --------------------------------------------------
+    # 3. INDIVIDUAL TEST IDS
     # Supports:
     # AU12
     # IS01A
     # TP-CREW-01
+    # TP-OPT-01
     # --------------------------------------------------
-    singles = re.findall(
-        r"\b(?!STRY)[A-Z]+(?:-[A-Z]+)*-\d+[A-Z]*\b|\b(?!STRY)[A-Z]{2,}\d+[A-Z]*\b",
-        text
+    TEST_ID_RE = re.compile(
+        r"\b(?!STRY)"
+        r"(?:"
+        r"[A-Z]+(?:-[A-Z]+)*-\d+[A-Z]*"
+        r"|"
+        r"[A-Z]{2,}\d+[A-Z]*"
+        r")\b"
     )
 
-    results.update(normalise_id(t) for t in singles)
+    singles = TEST_ID_RE.findall(text)
+
+    results.update(
+        normalise_id(t)
+        for t in singles
+    )
 
     return results
-
 
 RE_RELEASE = re.compile(r"RLSE\d{7}", re.IGNORECASE)
 RE_RELEASE_IDENTIFIER = re.compile(
@@ -185,23 +236,42 @@ def parse_plan_docx_with_release(path: Path):
 
 			for row in block.rows:
 
-				row_text = " ".join(
-					cell.text.strip()
+				# --------------------------------------------------
+				# Preserve cell structure
+				# (important for Word table parsing stability)
+				# --------------------------------------------------
+				cell_texts = [
+					normalise_text(cell.text)
 					for cell in row.cells
-					if cell.text.strip()
-				)
+				]
 
-				row_text = normalise_text(row_text)
+				row_text = " | ".join(
+					t for t in cell_texts
+					if t
+				)
 
 				if not row_text:
 					continue
 
+				# --------------------------------------------------
+				# Stories can exist anywhere in row
+				# --------------------------------------------------
 				stories = _extract_story_ids(row_text)
 
 				if not stories:
 					continue
 
-				tests = _extract_tests_from_cell(row_text)
+				# --------------------------------------------------
+				# Extract tests from EACH CELL independently
+				# (avoids DOCX merge/newline corruption)
+				# --------------------------------------------------
+				tests = set()
+
+				for cell_text in cell_texts:
+
+					tests.update(
+						_extract_tests_from_cell(cell_text)
+					)
 
 				for story in stories:
 
