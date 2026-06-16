@@ -792,6 +792,62 @@ This sheet is designed for:
 
 ------------------------------------------------------------------------
 
+
+
+------------------------------------------------------------------------
+
+## 🍎 macOS / Linux Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- Git
+- macOS or Linux
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/dwatkin3/traceability-tooling.git
+cd traceability-tooling
+```
+
+### Generate Regression Evidence
+
+The regression suite uses synthetic evidence files.
+
+```bash
+chmod +x create_regression_evidence.sh
+./create_regression_evidence.sh
+```
+
+This script is safe to run repeatedly and will not overwrite existing evidence.
+
+### Bootstrap the Environment
+
+```bash
+chmod +x bootstrap.sh validate.sh
+./bootstrap.sh 2026.04
+```
+
+### Validate a Release
+
+```bash
+./validate.sh 2026.04
+```
+
+### Typical First-Time Setup
+
+```bash
+git clone https://github.com/dwatkin3/traceability-tooling.git
+cd traceability-tooling
+chmod +x *.sh
+./create_regression_evidence.sh
+./bootstrap.sh 2026.04
+./validate.sh 2026.04
+```
+
+------------------------------------------------------------------------
+
 ## 🪟 Windows Support
 
 The recommended Windows execution approach is Git Bash.
