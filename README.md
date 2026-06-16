@@ -1,105 +1,22 @@
 ![CI](https://github.com/dwatkin3/traceability-tooling/actions/workflows/validate.yaml/badge.svg)
+
 # Traceability Reconciler (v5)
 
 ## Overview
 
-The Traceability Reconciler is a deterministic reconciliation engine
-designed to validate alignment between:
+The Traceability Reconciler is a deterministic reconciliation engine that validates alignment between:
 
--   Test Plans (intended coverage)
--   Test Execution results (actual coverage)
--   Release scope (story-level expectations)
+- Test Plans / Specifications
+- Test Execution Results
+- Release Scope
 
-It produces structured, audit-ready outputs to support Test Assurance,
-governance reviews, and delivery confidence.
+It produces structured, audit-ready outputs suitable for governance reviews, CABs, supplier handover and audit activities.
 
-This tool is specifically designed for environments where traceability
-is critical and must withstand external scrutiny (e.g. CAB, audit,
-supplier handover).
+---
 
-------------------------------------------------------------------------
+# 🚀 Quick Start
 
-## 🔄 End-to-End Flow
-
-```mermaid
-flowchart LR
-    A["Plan (.docx)"]
-    C["Execution (.xlsx)"]
-
-    A -->|Parse| B["Parsing Layer"]
-    C -->|Parse| B
-
-    B -->|Reconcile| D["Reconciliation Engine"]
-    D -->|Generate| E["Output Generator"]
-    E --> F["Excel Report (Audit Output)"]
-```
-**Explanation:** - Plan defines intended coverage - Execution captures
-actual results - Engine reconciles differences deterministically -
-Output provides audit-ready reporting
-
-------------------------------------------------------------------------
-
-## 📊 Example Output (Excel)
-
-Below is a representative example of the reconciliation output format:
-
-![Example Output](./docs/sample_output.png)
-
-**Key sheets included:** - Summary (high-level status) - Traceability
-Gaps (diagnostics) - Execution Detail (audit trail) - Supporting raw
-data sheets
-
-------------------------------------------------------------------------
-
-## Why This Exists
-
-In real delivery environments, inconsistencies frequently occur:
-
--   Tests planned but never executed 
--   Tests executed under the wrong story 
--   Duplicate execution across multiple stories 
--   Lack of evidence for passed tests
-
-Manual reconciliation is slow, subjective, and error-prone.
-
-This tool provides:
-
--   Objective reconciliation logic 
--   Repeatable and deterministic outputs 
--   Clear classification of issues 
--   A consistent audit trail
-
-------------------------------------------------------------------------
-
-## Core Concepts
-
-Understanding these definitions is critical for interpreting outputs:
-
-### Missing Test
-
-A test that exists in the plan but is not executed anywhere.
-
-### Misaligned Test
-
-A test that was executed, but under a different story than planned.
-
-### Extra Test
-
-A test that was executed but does not exist in the plan for that story.
-
-### Duplicate Test
-
-A test executed under more than one story.
-
-### Passed with Evidence
-
-A test marked as passed with valid supporting evidence.
-
-------------------------------------------------------------------------
-
-## 🚀 Quick Start
-
-### macOS / Linux
+## macOS / Linux
 
 ```bash
 git clone https://github.com/dwatkin3/traceability-tooling.git
@@ -112,7 +29,7 @@ chmod +x *.sh
 ./validate.sh 2026.04
 ```
 
-### Windows (Git Bash)
+## Windows (Git Bash)
 
 ```bash
 git clone https://github.com/dwatkin3/traceability-tooling.git
@@ -123,18 +40,98 @@ cd traceability-tooling
 ./validate.sh 2026.04
 ```
 
-## Validation Commands
+## Common Commands
 
 | Action | Command |
 |----------|----------|
 | Validate release | `./validate.sh 2026.04` |
 | Clean rebuild + validate | `./bootstrap.sh 2026.04` |
-| Update regression baseline | `./validate.sh 2026.04 --update-baseline` |
+| Update baseline | `./validate.sh 2026.04 --update-baseline` |
 | Archive previous output | `./validate.sh 2026.04 --archive` |
 
-## Regression Testing
+---
+
+# 📥 Inputs
+
+Each release contains:
+
+```text
+releases/YYYY.MM/
+```
+
+- One or more specification documents (.docx)
+- One or more execution workbooks (.xlsx)
+- A manifest.json describing inputs
+
+Supports:
+- Single-spec releases
+- Multi-spec releases
+- Multiple execution workbooks
+- Descriptive or RLSE release identifiers
+
+---
+
+# 📤 Outputs
+
+The generated workbook contains:
+
+| Sheet | Purpose |
+|---------|---------|
+| Dashboard | Executive summary |
+| Summary | Story-level reconciliation |
+| Traceability Gaps | Diagnostic view |
+| Execution Detail | Audit trail |
+| Traceability Matrix | Canonical flattened dataset |
+| Supporting Sheets | Parser and source transparency |
+
+## Dashboard
+
+Provides:
+- Planned stories
+- Executed stories
+- Coverage %
+- Failed tests
+- Missing tests
+- Misaligned tests
+
+## Summary
+
+Primary governance view showing:
+
+- Coverage status
+- Execution status
+- Root cause analysis
+
+## Traceability Gaps
+
+Used to investigate:
+- Missing tests
+- Misaligned tests
+- Extra tests
+- Duplicate tests
+
+## Execution Detail
+
+Provides a test-by-test audit trail.
+
+## Traceability Matrix
+
+Flattened machine-readable dataset designed for:
+
+- Audit analysis
+- Power BI
+- Governance reporting
+- Downstream tooling
+
+---
+
+# 🧪 Regression Testing
 
 Regression testing is fully integrated.
+
+```bash
+./validate.sh 2026.04
+```
 
 Each run compares:
 
@@ -144,540 +141,124 @@ vs
 tests/regression/baseline/Traceability_Reconciliation_YYYY.MM.xlsx
 ```
 
-CI executes the same validation process on every push.
+To intentionally update the baseline:
 
----
-
-## Inputs
-
-Each release folder should contain:
-
-    releases/YYYY.MM/
-
-With:
-
-- One or more Test Plan / Specification documents (`.docx`)
-- One or more execution workbooks (`.xlsx`)
-- A `manifest.json` describing the inputs
-
-The reconciler supports both:
-
-- Traditional single-specification releases
-- Aggregated multi-workstream releases
-
-Examples include:
-
-- Multiple supplier workstreams
-- Independently delivered feature packs
-- Mixed release-identification models
-
-Example:
-
-```json
-{
-  "plan_files": [
-    "20260508-Test Specification_Stock Management v0.1.docx",
-    "20260508-Test Specification_Time2Work_Boomi Integration v0.1.docx",
-    "20260508-Test Specification_Dynamic Scheduling and Schedule Optimisation v0.1.docx"
-  ],
-  "execution_files": [
-    "Stock Management Test Assurance Scripts v0.1.xlsx",
-    "T2W Boomi Test Assurance Scripts v0.1.xlsx",
-    "Dynamic Scheduling and Optimisation Test Assurance Scripts v0.1.xlsx"
-  ]
-}
-```
-
-
-------------------------------------------------------------------------
-## Outputs Explained (How to Read the Results)
-
-The Excel output is the primary deliverable of the Traceability
-Reconciler.\
-It is designed to support both quick assessment and detailed audit.
-
-Each sheet serves a distinct purpose and should be read in combination.
-
-------------------------------------------------------------------------
-
-### 1. Summary Sheet (Primary View)
-
-**Purpose:**
-Provides a high-level, story-by-story view of coverage and execution
-quality.
-
-Each row answers three key questions:
-
-#### 1. Coverage -- *Did we test what we planned?*
-
-Column: **Traceability**
-
--   🟢 Tests present
-    → All planned tests were executed under the correct story
-
--   🟡 Tests present (not linked)
-    → Tests were executed, but some are linked to the wrong story
-
--   🔴 Tests missing
-    → One or more planned tests were not executed anywhere
-
-------------------------------------------------------------------------
-
-#### 2. Execution Quality -- *Did the tests pass correctly?*
-
-Column: **Exec Status**
-
--   🟢 Passed with evidence
-    → All executed tests passed and have supporting evidence
-
--   🔴 Failed tests present
-    → At least one test failed
-
--   🟠 Mixed / Unknown
-    → Execution is incomplete or inconsistent
-
-------------------------------------------------------------------------
-
-#### 3. Root Cause -- *What exactly is wrong?*
-
-Column: **Issue**
-
-This column provides the detailed breakdown:
-
--   **Missing** → Planned but never executed
--   **Misaligned** → Executed under the wrong story
--   **Extra** → Executed but not planned
--   **Duplicate** → Executed under multiple stories
--   **Missing evidence** → Passed but lacks supporting evidence
-
-------------------------------------------------------------------------
-
-#### How to interpret a row
-
-Read across all three columns together:
-
--   Traceability = coverage correctness
--   Exec Status = execution outcome
--   Issue = detailed explanation
-
-Example:
-
--   🟡 Traceability + 🟢 Exec Status
-    → Tests passed, but traceability is incorrect
-
--   🔴 Traceability + 🟢 Exec Status
-    → Execution looks good, but coverage is incomplete
-
--   🔴 Traceability + 🔴 Exec Status
-    → Both coverage and execution are problematic
-
-------------------------------------------------------------------------
-
-### 2. Traceability Gaps Sheet (Diagnostic View)
-
-**Purpose:**
-Provides detailed analysis of where coverage breaks down.
-
-Contains:
-
--   Missing Tests
--   Misaligned Tests
--   Extra Tests
--   Coverage Counts
-
-**How to use:**
-
--   Use this sheet to investigate *why* a Summary row is not green
--   Misaligned tests indicate execution under the wrong story
--   Missing tests indicate true coverage gaps
--   Extra tests indicate potential scope drift
-
-------------------------------------------------------------------------
-
-### 3. Execution Detail Sheet (Audit View)
-
-**Purpose:**
-Provides a test-by-test audit trail.
-
-Each row shows:
-
--   Planned test
--   Where it was executed
--   Whether it is aligned
--   Execution status
-
-**Key fields:**
-
--   **Aligned = YES** → Executed under correct story
--   **Aligned = NO** → Executed under different story
--   **Status = NOT EXECUTED** → No execution found anywhere
-
-**How to use:**
-
--   Validate specific discrepancies
--   Trace issues back to execution data
--   Support audit or review discussions
-
-------------------------------------------------------------------------
-
-### 4. Supporting Sheets
-
-These provide traceability back to source data:
-
--   **Story_To_Test_Map** → Planned mapping of stories to tests
--   **Execution_Attachments** → Normalised execution data
--   **Plan_Raw / Exec_Raw** → Raw extracted inputs
-
-**How to use:**
-
--   Verify parser behaviour
--   Troubleshoot unexpected results
--   Provide audit transparency
-
-------------------------------------------------------------------------
-
-## Key Interpretation Rule
-
-The Summary sheet provides the headline view, but:
-
-> All issues shown there can be fully explained using the Traceability
-> Gaps and Execution Detail sheets.
-
-These sheets should always be used together for complete understanding.
-
-
-------------------------------------------------------------------------
-
-## 🧪 Regression Testing
-
-Regression is fully integrated into the validation pipeline.
-
-You do NOT need to:
-- create folders
-- copy output files
-- run regression scripts manually
-
----
-
-### How it works
-
-Each validation run automatically compares:
-
-outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx  
-vs  
-tests/regression/baseline/Traceability_Reconciliation_YYYY.MM.xlsx
-
----
-
-### Update baseline (intentional changes only)
-
+```bash
 ./validate.sh 2026.04 --update-baseline
-
----
-
-### Key principle
-
-Baseline represents expected output and should only be updated when:
-- behaviour changes are intentional
-- differences are understood
-
-### ⚙️ What this does
-
-1. Executes the reconciliation engine  
-2. Generates a fresh output file  
-3. Compares it against the baseline  
-4. Fails if any differences are detected  
-
----
-
-### ✅ Expected output
-
-Running reconciliation...
-
-Comparing sheet: Summary
-Summary matches
-
-Comparing sheet: Traceability Gaps
-Traceability Gaps matches
-
-Comparing sheet: Execution_Detail
-Execution_Detail matches
-
-REGRESSION PASSED
-
----
-
-### ❌ If it fails
-
-- Differences will be reported in the console  
-- Investigate before committing changes  
-- Only update the baseline file if the change is intentional  
-
----
-
-### 🧠 Notes
-
-- The baseline file is:
-  tests/regression/output/Traceability_Reconciliation_test.xlsx
-- It represents the expected output for the engine  
-- Update it only when behaviour changes are deliberate  
-- The mkdir step is safe to run repeatedly  
-
-------------------------------------------------------------------------
-
-## Design Principles
-
--   Normalise once at ingestion 
--   Deterministic outputs 
--   Separation of concerns (parser → engine → writer) 
--   Data-driven behaviour 
--   Audit-first design
-
-------------------------------------------------------------------------
-
-## Assumptions & Known Behaviours
-
-### Assumptions
-
--   Input files follow expected formats 
--   Story identifiers follow pattern (e.g. STRYxxxx) 
--   Test IDs are unique identifiers 
--   Execution files contain consistent status values
-
-------------------------------------------------------------------------
-
-### Known Behaviours
-
--   Misaligned tests are treated as coverage gaps 
--   Duplicate tests are reported but not automatically resolved 
--   Evidence is treated as a binary flag (yes/no) 
--   Output ordering may differ but data remains consistent
-
-------------------------------------------------------------------------
-
-## Limitations
-
--   Relies on consistent naming conventions 
--   Does not infer missing relationships automatically 
--   Does not validate business logic correctness of tests
-
-------------------------------------------------------------------------
-
-## Maintainer Guidance
-
--   Always run regression tests before committing 
--   Do not introduce implicit data transformations 
--   Prefer configuration over logic changes 
--   Treat output structure as contract
-
-------------------------------------------------------------------------
-
-# Project Utilities
-
-## reset_venv.sh
-
-Recreates the project's Python virtual environment from scratch.
-
--   Deletes any existing `.venv`
--   Creates a fresh virtual environment
--   Upgrades core packaging tools (`pip`, `setuptools`, `wheel`)
--   Installs dependencies from `requirements.txt`
-
-Use this when: - setting up the project for the first time -
-dependencies become inconsistent - switching environments
-
-Example: ./reset_venv.sh
-
-## run_release.sh
-
-Convenience wrapper to execute a release reconciliation run.
-
--   Activates the project's virtual environment
--   Calls `run_release.py` with the provided release ID
-
-Ensures consistent execution without requiring manual environment setup.
-
-Example: ./run_release.sh 2026.04
-
-## generate_manifest.sh
-
-Automatically generates a `manifest.json` for a given release.
-
--   Validates required folder structure:
-    -   `plan/`
-    -   `execution/`
--   Selects the most recent `.docx` file as the plan
--   Collects all `.xlsx` execution files
--   Writes a structured manifest with relative paths
-
-This removes the need to manually maintain manifest files and ensures
-consistency.
-
-Example: ./generate_manifest.sh 2026.04
-
-
-## Summary
-
-This tool is designed to be:
-
--   Deterministic 
--   Transparent 
--   Auditable 
--   Safe to evolve
-
-It should be treated as a controlled component within the delivery
-process, not a disposable script.
-
-
-
-
-------------------------------------------------------------------------
-
-## 🆕 Recent Enhancements
-
-### Multi-Document Release Support
-
-The reconciler now supports releases containing:
-
-- Multiple Test Specification / Plan documents
-- Multiple execution workbooks
-- Mixed release identification models
-
-Supported release identification patterns include:
-
-#### Classic Release IDs
-Example:
-- `RLSE0010179`
-
-#### Descriptive Release Identifiers
-Example:
-- `Dynamic Scheduling and Schedule Optimisation`
-- `Stock Management`
-- `Time2Work Boomi Integration`
-
-This allows aggregation of independently delivered workstreams into a single reconciliation output.
-
-------------------------------------------------------------------------
-
-### Expanded Test ID Support
-
-The parser now supports:
-
-- Standard IDs:
-  - `AU12`
-  - `IS01A`
-
-- Hyphenated IDs:
-  - `TP-CREW-01`
-  - `TP-OPT-14`
-
-- Evidence ranges:
-  - `IS01A-F`
-  - `IS14A-K`
-
-Range identifiers are automatically expanded during reconciliation and evidence matching.
-
-------------------------------------------------------------------------
-
-### 📋 Dashboard Sheet
-
-Outputs now include a dedicated `Dashboard` worksheet providing:
-
-| Metric | Description |
-|---|---|
-| Planned stories | Stories present in specification |
-| Executed stories | Stories with execution coverage |
-| Planned Test Coverage % | Coverage percentage |
-| Failed tests | Count of failed executions |
-| Missing tests | Planned but not executed |
-| Misaligned tests | Executed under incorrect story |
-
-This provides a rapid governance and CAB-facing summary.
-
-------------------------------------------------------------------------
-
-### 🔗 Workbook Navigation Improvements
-
-Generated workbooks now include:
-
-- Auto filters
-- Frozen header rows
-- Automatic column sizing
-- Hyperlinks from:
-  - Summary → Traceability Gaps
-  - Summary → Execution Detail
-
-This improves usability during audit and governance review.
-
-------------------------------------------------------------------------
-
-### 🧾 Canonical Traceability Matrix
-
-A new `Traceability_Matrix` sheet provides a flattened audit dataset.
-
-Each row contains:
-
-`Release -> Story -> Test ID -> Execution Status -> Evidence -> Alignment`
-
-This sheet is designed for:
-
-- filtering
-- audit analysis
-- Power BI ingestion
-- downstream governance tooling
-- machine-readable reconciliation
-
-------------------------------------------------------------------------
-
-## 🪟 Windows Support
-
-The recommended Windows execution approach is Git Bash.
-
-### Install Git Bash
-
-Download from:
-
-https://git-scm.com/download/win
-
-Install using default options.
-
-### First-Time Setup
-
-Open Git Bash and run:
-
-```bash
-git clone https://github.com/dwatkin3/traceability-tooling.git
-cd traceability-tooling
-./bootstrap.sh 2026.04
 ```
 
-### Normal Usage
+Regression validates:
 
-```bash
-./validate.sh 2026.04
-```
-
-------------------------------------------------------------------------
-
-## 🔍 Regression Philosophy
-
-Regression now validates both:
-
-### Data Integrity
 - Summary
 - Traceability Gaps
 - Execution Detail
 - Dashboard
 - Traceability Matrix
+- Hyperlinks
+- Filters
+- Freeze panes
 
-### Workbook Structure
-- Required sheets present
-- Hyperlinks present
-- Freeze panes enabled
-- Filters enabled
+---
 
-This helps detect both:
-- reconciliation logic regressions
-- workbook usability regressions
+# 🔄 End-to-End Flow
 
-------------------------------------------------------------------------
+```mermaid
+flowchart LR
+    A["Plan (.docx)"]
+    C["Execution (.xlsx)"]
+    A -->|Parse| B["Parsing Layer"]
+    C -->|Parse| B
+    B -->|Reconcile| D["Reconciliation Engine"]
+    D -->|Generate| E["Output Generator"]
+    E --> F["Excel Report"]
+```
+
+---
+
+# Core Concepts
+
+- Missing Test – planned but not executed
+- Misaligned Test – executed under the wrong story
+- Extra Test – executed but not planned
+- Duplicate Test – executed under multiple stories
+- Passed with Evidence – passed with supporting evidence
+
+---
+
+# Recent Enhancements
+
+## Multi-Document Releases
+
+Supports:
+- Multiple specifications
+- Multiple execution workbooks
+- Mixed release identifiers
+
+## Expanded Test ID Support
+
+Supports:
+
+- AU12
+- IS01A
+- TP-CREW-01
+- TP-OPT-01
+- AU01-AU05
+- IS70A-D
+
+## Dashboard Sheet
+
+Governance-focused summary metrics.
+
+## Traceability Matrix
+
+Canonical flattened audit dataset.
+
+## Workbook Navigation
+
+- Filters
+- Freeze panes
+- Hyperlinks
+- Auto-sizing
+
+---
+
+# Utilities
+
+## bootstrap.sh
+
+Creates a clean environment and validates a release.
+
+## validate.sh
+
+Runs reconciliation and regression validation.
+
+## generate_manifest.sh
+
+Generates release manifests automatically.
+
+## reset_venv.sh
+
+Rebuilds the Python virtual environment.
+
+## run_release.sh
+
+Direct execution wrapper around run_release.py.
+
+---
+
+# Design Principles
+
+- Deterministic outputs
+- Audit-first design
+- Separation of concerns
+- Minimal implicit behaviour
+- Transparent reconciliation
+
+---
+
+# Maintainer Notes
+
+- Run regression before committing
+- Treat workbook structure as a contract
+- Understand differences before updating baselines
+- Prefer configuration over hidden logic
