@@ -97,219 +97,56 @@ A test marked as passed with valid supporting evidence.
 
 ------------------------------------------------------------------------
 
-## 🚀 Validation Pipeline
+## 🚀 Quick Start
 
-The project now provides a deterministic, single-command validation workflow.
+### macOS / Linux
 
----
+```bash
+git clone https://github.com/dwatkin3/traceability-tooling.git
+cd traceability-tooling
 
-### 🔁 Validate a Release (standard)
+chmod +x *.sh
 
-Run the full pipeline and compare against baseline:
-
-./validate.sh 2026.04
-
-This will:
-- Generate the manifest
-- Run the reconciliation engine
-- Produce output in `outputs/2026.04/`
-- Compare output against the baseline
-- Fail if any regression is detected
-
----
-
-### 🧼 Clean Bootstrap + Validation
-
-For a full clean rebuild (recommended for first run or debugging):
-
+./create_regression_evidence.sh
 ./bootstrap.sh 2026.04
+./validate.sh 2026.04
+```
 
-This will:
-- Recreate the virtual environment
-- Install dependencies
-- Run full validation
+### Windows (Git Bash)
 
----
+```bash
+git clone https://github.com/dwatkin3/traceability-tooling.git
+cd traceability-tooling
 
-### 📌 Update Baseline (intentional changes only)
+./create_regression_evidence.sh
+./bootstrap.sh 2026.04
+./validate.sh 2026.04
+```
 
-If you have made a deliberate change to engine behaviour:
+## Validation Commands
 
-./validate.sh 2026.04 --update-baseline
+| Action | Command |
+|----------|----------|
+| Validate release | `./validate.sh 2026.04` |
+| Clean rebuild + validate | `./bootstrap.sh 2026.04` |
+| Update regression baseline | `./validate.sh 2026.04 --update-baseline` |
+| Archive previous output | `./validate.sh 2026.04 --archive` |
 
-This will:
-- Run the pipeline
-- Replace the baseline with the new output
-- Then validate against it
+## Regression Testing
 
-⚠️ Only update baseline when changes are expected and understood.
-
----
-
-## 🧪 Regression Behaviour
-
-Regression is fully automated and integrated into validation.
-
-There is **no manual copying of files**.
+Regression testing is fully integrated.
 
 Each run compares:
 
-outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx  
-vs  
+```text
+outputs/YYYY.MM/Traceability_Reconciliation_YYYY.MM.xlsx
+vs
 tests/regression/baseline/Traceability_Reconciliation_YYYY.MM.xlsx
-
----
-
-### ✅ Success
-
-Comparing sheet: Summary  
-✅ Summary matches  
-
-Comparing sheet: Traceability Gaps  
-✅ Traceability Gaps matches  
-
-Comparing sheet: Execution_Detail  
-✅ Execution_Detail matches  
-
-✅ REGRESSION PASSED
-
----
-
-### ❌ Failure
-
-If differences are detected:
-
-- CI will fail  
-- Differences will be printed in the console  
-- Investigation is required before updating baseline  
-
----
-
-## 🤖 Continuous Integration (CI)
-
-Validation runs automatically on every push to `main`.
-
-The GitHub Actions pipeline:
-
-- Creates a clean environment  
-- Runs the full validation pipeline  
-- Compares against baseline  
-- Fails the build if regression is detected  
-
-This guarantees:
-- Reproducibility from a clean environment  
-- Deterministic outputs  
-- Immediate detection of unintended changes  
-
-Diff files are automatically generated and attached to CI runs on failure.
-
----
-
-## 🧠 Workflow Summary
-
-| Action | Command |
-|------|--------|
-| Validate release | `./validate.sh 2026.04` |
-| Clean rebuild + validate | `./bootstrap.sh 2026.04` |
-| Update baseline | `./validate.sh 2026.04 --update-baseline` |
-
----
-
-## ⚠️ Key Principles
-
-- Baseline represents expected output — treat it as a contract  
-- CI validates behaviour — it does not redefine it  
-- Regression must pass before committing changes  
-- Output differences must always be understood before baseline updates  
-
-
-## 🚀 How to Run (Updated)
-
-This project provides a simplified, single-command workflow for validation.
-
-### 🔁 Fast Validation (recommended)
-
-Run the full pipeline + regression:
-
-./validate.sh 2026.04
-
-This will:
-- Generate the manifest
-- Run the reconciliation engine
-- Produce output in outputs/2026.04/
-- Automatically prepare regression baseline
-- Execute regression tests
-
----
-
-### 🧼 Clean Bootstrap + Validation
-
-For a full clean rebuild:
-
-./bootstrap.sh 2026.04
-
-This will:
-- Rebuild the virtual environment
-- Install dependencies
-- Run full validation (same as validate.sh)
-
----
-
-### 📦 Optional: Archive Previous Output
-
-To keep previous outputs:
-
-./validate.sh 2026.04 --archive
-
-
----------------------------------------------------------------------
-
-### Expected Output
-
-Running validation...
-
-Comparing sheet: Summary
-Summary matches
-
-Comparing sheet: Traceability Gaps
-Traceability Gaps matches
-
-Comparing sheet: Execution_Detail
-Execution_Detail matches
-
-REGRESSION PASSED
-
----
-
-### If it fails
-
-- Differences will be printed to the console
-- Investigate before committing
-- Only update baseline if change is intentional
-
----
-
-## 🧠 Notes
-
-- validate.sh is the primary user entrypoint
-- bootstrap.sh is for clean environment rebuilds
-- run_release.sh is still available for direct execution if needed
-
-## Advanced usage (optional)
-
-You can run the Python entry point directly if needed:
-
-``` bash
-python run_release.py --release 2026.04
 ```
 
-(Requires an active virtual environment)
+CI executes the same validation process on every push.
 
-Outputs will be generated in:
-
-    outputs/YYYY.MM/
-
-------------------------------------------------------------------------
+---
 
 ## Inputs
 
@@ -350,7 +187,7 @@ Example:
   ]
 }
 ```
-```
+
 
 ------------------------------------------------------------------------
 ## Outputs Explained (How to Read the Results)
@@ -789,62 +626,6 @@ This sheet is designed for:
 - Power BI ingestion
 - downstream governance tooling
 - machine-readable reconciliation
-
-------------------------------------------------------------------------
-
-
-
-------------------------------------------------------------------------
-
-## 🍎 macOS / Linux Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Git
-- macOS or Linux
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/dwatkin3/traceability-tooling.git
-cd traceability-tooling
-```
-
-### Generate Regression Evidence
-
-The regression suite uses synthetic evidence files.
-
-```bash
-chmod +x create_regression_evidence.sh
-./create_regression_evidence.sh
-```
-
-This script is safe to run repeatedly and will not overwrite existing evidence.
-
-### Bootstrap the Environment
-
-```bash
-chmod +x bootstrap.sh validate.sh
-./bootstrap.sh 2026.04
-```
-
-### Validate a Release
-
-```bash
-./validate.sh 2026.04
-```
-
-### Typical First-Time Setup
-
-```bash
-git clone https://github.com/dwatkin3/traceability-tooling.git
-cd traceability-tooling
-chmod +x *.sh
-./create_regression_evidence.sh
-./bootstrap.sh 2026.04
-./validate.sh 2026.04
-```
 
 ------------------------------------------------------------------------
 
